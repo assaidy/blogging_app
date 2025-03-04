@@ -1,0 +1,13 @@
+version: "2"
+sql:
+  - engine: "postgresql"
+    schema: "./internal/repositry/migrations/"
+    queries: "./internal/repositry/queries/queries.sql"
+    gen:
+      go:
+        package: "repositry"
+        out: "./internal/repositry"
+        overrides:
+          - db_type: "ulid"
+            go_type: "string"
+          
