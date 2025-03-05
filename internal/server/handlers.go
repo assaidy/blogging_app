@@ -373,7 +373,6 @@ func (me *App) handleCreatePost(c *fiber.Ctx) error {
 	if err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, fmt.Sprintf("error getting followers IDs: %+v", err))
 	}
-
 	for _, id := range followersIDs {
 		me.notificationChan <- repositry.Notification{
 			ID:       ulid.Make().String(),
@@ -384,27 +383,9 @@ func (me *App) handleCreatePost(c *fiber.Ctx) error {
 		}
 	}
 
-	reactions, err := me.queries.GetPostReactions(context.Background(), post.ID)
-	if err != nil {
-		return fiber.NewError(fiber.StatusInternalServerError, fmt.Sprintf("error getting post reactions: %+v", err))
-	}
-
-	payload := types.PostPayload{
-		ID:               post.ID,
-		UserID:           post.UserID,
-		Title:            post.Title,
-		Content:          post.Content,
-		CreatedAt:        post.CreatedAt,
-		ViewsCount:       post.ViewsCount,
-		CommentsCount:    post.CommentsCount,
-		FeaturedImageUrl: post.FeaturedImageUrl.String,
-	}
-	for _, reaction := range reactions {
-		payload.Reactions = append(payload.Reactions, types.PostReaction{
-			Name:  reaction.Name,
-			Count: reaction.Count,
-		})
-	}
+	var payload types.PostPayload
+	fillPostPayload(&payload, &post)
+	payload.Reactions = []types.PostPayloadReaction{}
 
 	return c.Status(fiber.StatusCreated).JSON(types.ApiResponse{
 		Payload: payload,
@@ -427,22 +408,9 @@ func (me *App) handleGetPost(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusInternalServerError, fmt.Sprintf("error getting post reactions: %+v", err))
 	}
 
-	payload := types.PostPayload{
-		ID:               post.ID,
-		UserID:           post.UserID,
-		Title:            post.Title,
-		Content:          post.Content,
-		CreatedAt:        post.CreatedAt,
-		ViewsCount:       post.ViewsCount,
-		CommentsCount:    post.CommentsCount,
-		FeaturedImageUrl: post.FeaturedImageUrl.String,
-	}
-	for _, reaction := range reactions {
-		payload.Reactions = append(payload.Reactions, types.PostReaction{
-			Name:  reaction.Name,
-			Count: reaction.Count,
-		})
-	}
+	var payload types.PostPayload
+	fillPostPayload(&payload, &post)
+	fillPostReactions(&payload, reactions)
 
 	return c.Status(fiber.StatusOK).JSON(types.ApiResponse{
 		Payload: payload,
@@ -489,22 +457,9 @@ func (me *App) handleUpdatePost(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusInternalServerError, fmt.Sprintf("error getting post reactions: %+v", err))
 	}
 
-	payload := types.PostPayload{
-		ID:               newPost.ID,
-		UserID:           newPost.UserID,
-		Title:            newPost.Title,
-		Content:          newPost.Content,
-		CreatedAt:        newPost.CreatedAt,
-		ViewsCount:       newPost.ViewsCount,
-		CommentsCount:    newPost.CommentsCount,
-		FeaturedImageUrl: newPost.FeaturedImageUrl.String,
-	}
-	for _, reaction := range reactions {
-		payload.Reactions = append(payload.Reactions, types.PostReaction{
-			Name:  reaction.Name,
-			Count: reaction.Count,
-		})
-	}
+	var payload types.PostPayload
+	fillPostPayload(&payload, &newPost)
+	fillPostReactions(&payload, reactions)
 
 	return c.Status(fiber.StatusOK).JSON(types.ApiResponse{
 		Payload: payload,
@@ -592,7 +547,7 @@ func (me *App) handleGetAllUserPosts(c *fiber.Ctx) error {
 			return fiber.NewError(fiber.StatusInternalServerError, fmt.Sprintf("error getting post reactions: %+v", err))
 		}
 		for _, reaction := range reactions {
-			curr.Reactions = append(curr.Reactions, types.PostReaction{
+			curr.Reactions = append(curr.Reactions, types.PostPayloadReaction{
 				Name:  reaction.Name,
 				Count: reaction.Count,
 			})
@@ -723,14 +678,11 @@ func (me *App) handleCreateComment(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusInternalServerError, fmt.Sprintf("error creating error: %+v", err))
 	}
 
+	var payload types.CommentPayload
+	fillCommentPayload(&payload, &comment)
+
 	return c.Status(fiber.StatusCreated).JSON(types.ApiResponse{
-		Payload: types.CommentPayload{
-			ID:        comment.ID,
-			PostID:    comment.PostID,
-			UserID:    comment.UserID,
-			Content:   comment.Content,
-			CreatedAt: comment.CreatedAt,
-		},
+		Payload: payload,
 	})
 }
 
@@ -767,14 +719,11 @@ func (me *App) handleUpdateComment(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusInternalServerError, fmt.Sprintf("error updating comment: %+v", err))
 	}
 
+	var payload types.CommentPayload
+	fillCommentPayload(&payload, &newComment)
+
 	return c.Status(fiber.StatusOK).JSON(types.ApiResponse{
-		Payload: types.CommentPayload{
-			ID:        newComment.ID,
-			PostID:    newComment.PostID,
-			UserID:    newComment.UserID,
-			Content:   newComment.Content,
-			CreatedAt: newComment.CreatedAt,
-		},
+		Payload: payload,
 	})
 }
 
@@ -870,6 +819,15 @@ func (me *App) handleAddToBookmarks(c *fiber.Ctx) error {
 
 	userID := getUserIDFromContext(c)
 
+	if exists, err := me.queries.CheckBookmark(context.Background(), repositry.CheckBookmarkParams{
+		PostID: postID,
+		UserID: userID,
+	}); err != nil {
+		return fiber.NewError(fiber.StatusInternalServerError, fmt.Sprintf("error checking bookmark: %+v", err))
+	} else if exists {
+		return fiber.NewError(fiber.StatusConflict, "bookmarks already exists")
+	}
+
 	if err := me.queries.CreateBookmark(context.Background(), repositry.CreateBookmarkParams{
 		PostID: postID,
 		UserID: userID,
@@ -890,7 +848,7 @@ func (me *App) handleDeleteFromBookmarks(c *fiber.Ctx) error {
 	}); err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, fmt.Sprintf("error checking bookmark: %+v", err))
 	} else if !exists {
-		return fiber.NewError(fiber.StatusNotFound, "post is not in bookmarks")
+		return fiber.NewError(fiber.StatusNotFound, "bookmark doesn't exist")
 	}
 
 	if err := me.queries.DeleteBookmark(context.Background(), repositry.DeleteBookmarkParams{
@@ -948,7 +906,7 @@ func (me *App) handleGetAllBookmarks(c *fiber.Ctx) error {
 			return fiber.NewError(fiber.StatusInternalServerError, fmt.Sprintf("error getting post reactions: %+v", err))
 		}
 		for _, reaction := range reactions {
-			curr.Reactions = append(curr.Reactions, types.PostReaction{
+			curr.Reactions = append(curr.Reactions, types.PostPayloadReaction{
 				Name:  reaction.Name,
 				Count: reaction.Count,
 			})
@@ -975,7 +933,7 @@ func (me *App) handleReact(c *fiber.Ctx) error {
 	kindID, err := me.queries.GetReactionKindIDByName(context.Background(), reactionKindName)
 	if err != nil {
 		if repositry.IsNotFoundError(err) {
-			return fiber.NewError(fiber.StatusBadRequest, fmt.Sprintf("invalid reaction kind: %+v", err))
+			return fiber.NewError(fiber.StatusBadRequest, "invalid reaction kind")
 		}
 		return fiber.NewError(fiber.StatusInternalServerError, fmt.Sprintf("error getting reaction kind id: %+v", err))
 	}
@@ -1004,6 +962,13 @@ func (me *App) handleDeleteReaction(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusInternalServerError, fmt.Sprintf("error checking reaction: %+v", err))
 	} else if !exists {
 		return fiber.NewError(fiber.StatusNotFound, "you have no reactions on this post")
+	}
+
+	if err := me.queries.DeleteReaction(context.Background(), repositry.DeleteReactionParams{
+		PostID: postID,
+		UserID: userID,
+	}); err != nil {
+		return fiber.NewError(fiber.StatusInternalServerError, fmt.Sprintf("error deleting reaction: %+v", err))
 	}
 
 	return c.Status(fiber.StatusOK).SendString("reaction deleted successfully")
@@ -1113,6 +1078,8 @@ func (me *App) handleMarkNotificationAsRead(c *fiber.Ctx) error {
 	return c.Status(fiber.StatusOK).SendString("notification marked as read successfully")
 }
 
+// getUserIDFromContext retrieves the user ID from the context, which is set by the authentication middleware.
+// The user ID is stored in the context under the key "userID" and is expected to be a string.
 func getUserIDFromContext(c *fiber.Ctx) string {
 	return c.Locals("userID").(string)
 }
@@ -1138,4 +1105,36 @@ func fillUserPayload(userPayload *types.UserPayload, repoUser *repositry.User) {
 	userPayload.FollowingCount = repoUser.FollowingCount
 	userPayload.FollowersCount = repoUser.FollowersCount
 	userPayload.ProfileImageUrl = repoUser.ProfileImageUrl.String
+}
+
+func fillPostPayload(postPayload *types.PostPayload, repoPost *repositry.Post) {
+	postPayload.ID = repoPost.ID
+	postPayload.UserID = repoPost.UserID
+	postPayload.Title = repoPost.Title
+	postPayload.Content = repoPost.Content
+	postPayload.CreatedAt = repoPost.CreatedAt
+	postPayload.ViewsCount = repoPost.ViewsCount
+	postPayload.CommentsCount = repoPost.CommentsCount
+	postPayload.FeaturedImageUrl = repoPost.FeaturedImageUrl.String
+}
+
+func fillPostReactions(postPayload *types.PostPayload, repoReactions []repositry.GetPostReactionsRow) {
+	for _, reaction := range repoReactions {
+		postPayload.Reactions = append(postPayload.Reactions, types.PostPayloadReaction{
+			Name:  reaction.Name,
+			Count: reaction.Count,
+		})
+	}
+	// still nil if repoReactions is empty
+	if postPayload.Reactions == nil {
+		postPayload.Reactions = []types.PostPayloadReaction{}
+	}
+}
+
+func fillCommentPayload(commentPayload *types.CommentPayload, repoComment *repositry.PostComment) {
+	commentPayload.ID = repoComment.ID
+	commentPayload.PostID = repoComment.PostID
+	commentPayload.UserID = repoComment.UserID
+	commentPayload.Content = repoComment.Content
+	commentPayload.CreatedAt = repoComment.CreatedAt
 }

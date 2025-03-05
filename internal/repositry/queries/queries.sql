@@ -94,7 +94,7 @@ SELECT
 FROM post_reactions pr
 JOIN reaction_kinds rk ON pr.kind_id = rk.id
 WHERE pr.post_id = $1
-GROUP BY pr.kind_id;
+GROUP BY pr.kind_id, rk.name;
 
 -- name: GetReactionKindIDByName :one
 SELECT id FROM reaction_kinds WHERE name = $1;

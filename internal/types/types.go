@@ -50,18 +50,18 @@ type PostCreateOrUpdateRequest struct {
 
 // FIX: remove all *Count feilds
 type PostPayload struct {
-	ID               string         `json:"id"`
-	UserID           string         `json:"userID"`
-	Title            string         `json:"title"`
-	Content          string         `json:"content"`
-	CreatedAt        time.Time      `json:"createdAt"`
-	ViewsCount       int32          `json:"viewsCount"`
-	Reactions        []PostReaction `json:"reactions"`
-	CommentsCount    int32          `json:"commentsCount"`
-	FeaturedImageUrl string         `json:"featuredImageUrl,omitempty"`
+	ID               string                `json:"id"`
+	UserID           string                `json:"userID"`
+	Title            string                `json:"title"`
+	Content          string                `json:"content"`
+	CreatedAt        time.Time             `json:"createdAt"`
+	ViewsCount       int32                 `json:"viewsCount"`
+	Reactions        []PostPayloadReaction `json:"reactions"`
+	CommentsCount    int32                 `json:"commentsCount"`
+	FeaturedImageUrl string                `json:"featuredImageUrl,omitempty"`
 }
 
-type PostReaction struct {
+type PostPayloadReaction struct {
 	Name  string `json:"name"`
 	Count int64  `json:"count"`
 }

@@ -29,7 +29,6 @@ func (me *App) registerRoutes() {
 		v1.Post("/unfollow/:followed_id", mwAuth, me.handleUnfollow)
 		// v1.Get("/users/:user_id/followers", mwAuth, me.handleGetAllFollowers)
 
-		// TEST:
 		v1.Post("/posts", mwAuth, me.handleCreatePost)
 		v1.Get("/posts/:post_id", me.handleGetPost)
 		v1.Put("/posts/:post_id", mwAuth, me.handleUpdatePost)
@@ -45,7 +44,7 @@ func (me *App) registerRoutes() {
 		v1.Delete("/posts/comments/:comment_id", mwAuth, me.handleDeleteComment)
 		// v1.Get("/posts/post_id/comments", mwAuth, me.handleGetAllPostComments)
 
-		v1.Post("/posts/:post_id/like", mwAuth, me.handleReact)
+		v1.Post("/posts/:post_id/reaction", mwAuth, me.handleReact)
 		v1.Delete("/posts/:post_id/reaction", mwAuth, me.handleDeleteReaction)
 
 		v1.Post("/bookmarks/post/:post_id", mwAuth, me.handleAddToBookmarks)
