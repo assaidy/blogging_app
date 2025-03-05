@@ -38,6 +38,22 @@ func (q *Queries) CheckComment(ctx context.Context, id string) (bool, error) {
 	return exists, err
 }
 
+const checkFollow = `-- name: CheckFollow :one
+SELECT EXISTS(SELECT 1 FROM follows WHERE follower_id = $1 AND followed_id = $2)
+`
+
+type CheckFollowParams struct {
+	FollowerID string
+	FollowedID string
+}
+
+func (q *Queries) CheckFollow(ctx context.Context, arg CheckFollowParams) (bool, error) {
+	row := q.db.QueryRowContext(ctx, checkFollow, arg.FollowerID, arg.FollowedID)
+	var exists bool
+	err := row.Scan(&exists)
+	return exists, err
+}
+
 const checkNotificationForUser = `-- name: CheckNotificationForUser :one
 SELECT EXISTS(SELECT 1 FROM notifications WHERE id = $1 AND user_id = $2)
 `
@@ -891,16 +907,11 @@ func (q *Queries) GetReactionKindIDByName(ctx context.Context, name string) (int
 }
 
 const getRefreshToken = `-- name: GetRefreshToken :one
-SELECT token, user_id, created_at, expires_at FROM refresh_tokens WHERE token = $1 AND user_id = $2
+SELECT token, user_id, created_at, expires_at FROM refresh_tokens WHERE token = $1
 `
 
-type GetRefreshTokenParams struct {
-	Token  string
-	UserID string
-}
-
-func (q *Queries) GetRefreshToken(ctx context.Context, arg GetRefreshTokenParams) (RefreshToken, error) {
-	row := q.db.QueryRowContext(ctx, getRefreshToken, arg.Token, arg.UserID)
+func (q *Queries) GetRefreshToken(ctx context.Context, token string) (RefreshToken, error) {
+	row := q.db.QueryRowContext(ctx, getRefreshToken, token)
 	var i RefreshToken
 	err := row.Scan(
 		&i.Token,

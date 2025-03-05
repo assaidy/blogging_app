@@ -64,17 +64,11 @@ func (me *App) handleRegister(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusInternalServerError, fmt.Sprintf("error storing refresh token: %+v", err))
 	}
 
+	var userPayload types.UserPayload
+	fillUserPayload(&userPayload, &user)
+
 	return c.Status(fiber.StatusCreated).JSON(types.ApiResponse{
-		Payload: types.UserPayload{
-			ID:              user.ID,
-			Name:            user.Name,
-			Username:        user.Username,
-			JoinedAt:        user.JoinedAt,
-			PostsCount:      user.PostsCount,
-			FollowingCount:  user.FollowingCount,
-			FollowersCount:  user.FollowersCount,
-			ProfileImageUrl: user.ProfileImageUrl.String,
-		},
+		Payload:      userPayload,
 		AccessToken:  accessToken,
 		RefreshToken: refreshToken,
 	})
@@ -115,35 +109,23 @@ func (me *App) handleLogin(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusInternalServerError, fmt.Sprintf("error storing refresh token: %+v", err))
 	}
 
-	return c.Status(fiber.StatusOK).JSON(types.ApiResponse{
-		Payload: types.UserPayload{
-			ID:              user.ID,
-			Name:            user.Name,
-			Username:        user.Username,
-			JoinedAt:        user.JoinedAt,
-			PostsCount:      user.PostsCount,
-			FollowingCount:  user.FollowingCount,
-			FollowersCount:  user.FollowersCount,
-			ProfileImageUrl: user.ProfileImageUrl.String,
-		},
+	var userPayload types.UserPayload
+	fillUserPayload(&userPayload, &user)
+
+	return c.Status(fiber.StatusCreated).JSON(types.ApiResponse{
+		Payload:      userPayload,
 		AccessToken:  accessToken,
 		RefreshToken: refreshToken,
 	})
 }
 
 func (me *App) handleGetAccessToken(c *fiber.Ctx) error {
-	req := types.GetAccessTokenRequest{}
-	if err := parseAndValidateJsonBody(c, &req); err != nil {
-		return err
-	}
+	refreshTokenQuery := c.Query("refreshToken")
 
-	refreshToken, err := me.queries.GetRefreshToken(context.Background(), repositry.GetRefreshTokenParams{
-		Token:  req.RefreshToken,
-		UserID: req.UserID,
-	})
+	refreshToken, err := me.queries.GetRefreshToken(context.Background(), refreshTokenQuery)
 	if err != nil {
 		if repositry.IsNotFoundError(err) {
-			return fiber.NewError(fiber.StatusNotFound, "token doesn't exist")
+			return fiber.NewError(fiber.StatusUnauthorized, "invalid token")
 		}
 		return fiber.NewError(fiber.StatusInternalServerError, fmt.Sprintf("error getting refresh token: %+v", err))
 	}
@@ -155,7 +137,7 @@ func (me *App) handleGetAccessToken(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusUnprocessableEntity, fmt.Sprintf("refresh token expired: %+v", err))
 	}
 
-	accessToken, err := utils.GenerateJWTAccessToken(req.UserID)
+	accessToken, err := utils.GenerateJWTAccessToken(refreshToken.UserID)
 	if err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, fmt.Sprintf("error creating access token: %+v", err))
 	}
@@ -176,17 +158,11 @@ func (me *App) handleGetUserById(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusInternalServerError, fmt.Sprintf("error getting user: %+v", err))
 	}
 
+	var userPayload types.UserPayload
+	fillUserPayload(&userPayload, &user)
+
 	return c.Status(fiber.StatusOK).JSON(types.ApiResponse{
-		Payload: types.UserPayload{
-			ID:              user.ID,
-			Name:            user.Name,
-			Username:        user.Username,
-			JoinedAt:        user.JoinedAt,
-			PostsCount:      user.PostsCount,
-			FollowingCount:  user.FollowingCount,
-			FollowersCount:  user.FollowersCount,
-			ProfileImageUrl: user.ProfileImageUrl.String,
-		},
+		Payload: userPayload,
 	})
 }
 
@@ -201,17 +177,11 @@ func (me *App) handleGetUserByUsername(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusInternalServerError, fmt.Sprintf("error getting user: %+v", err))
 	}
 
+	var userPayload types.UserPayload
+	fillUserPayload(&userPayload, &user)
+
 	return c.Status(fiber.StatusOK).JSON(types.ApiResponse{
-		Payload: types.UserPayload{
-			ID:              user.ID,
-			Name:            user.Name,
-			Username:        user.Username,
-			JoinedAt:        user.JoinedAt,
-			PostsCount:      user.PostsCount,
-			FollowingCount:  user.FollowingCount,
-			FollowersCount:  user.FollowersCount,
-			ProfileImageUrl: user.ProfileImageUrl.String,
-		},
+		Payload: userPayload,
 	})
 }
 
@@ -256,17 +226,11 @@ func (me *App) handleUpdateUser(c *fiber.Ctx) error {
 		ProfileImageUrl: sql.NullString{Valid: true, String: req.ProfileImageUrl},
 	})
 
+	var userPayload types.UserPayload
+	fillUserPayload(&userPayload, &newUser)
+
 	return c.Status(fiber.StatusOK).JSON(types.ApiResponse{
-		Payload: types.UserPayload{
-			ID:              newUser.ID,
-			Name:            newUser.Name,
-			Username:        newUser.Username,
-			JoinedAt:        newUser.JoinedAt,
-			PostsCount:      newUser.PostsCount,
-			FollowingCount:  newUser.FollowingCount,
-			FollowersCount:  newUser.FollowersCount,
-			ProfileImageUrl: newUser.ProfileImageUrl.String,
-		},
+		Payload: userPayload,
 	})
 }
 
@@ -292,6 +256,15 @@ func (me *App) handleFollow(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusInternalServerError, fmt.Sprintf("error checking user ID: %+v", err))
 	} else if !exists {
 		return fiber.NewError(fiber.StatusNotFound, "user not found")
+	}
+
+	if exists, err := me.queries.CheckFollow(context.Background(), repositry.CheckFollowParams{
+		FollowerID: userID,
+		FollowedID: followedID,
+	}); err != nil {
+		return fiber.NewError(fiber.StatusInternalServerError, fmt.Sprintf("error checking follow: %+v", err))
+	} else if exists {
+		return fiber.NewError(fiber.StatusConflict, "user is already followed")
 	}
 
 	if err := me.queries.CreateFollow(context.Background(), repositry.CreateFollowParams{
@@ -325,6 +298,15 @@ func (me *App) handleUnfollow(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusNotFound, "user not found")
 	}
 
+	if exists, err := me.queries.CheckFollow(context.Background(), repositry.CheckFollowParams{
+		FollowerID: userID,
+		FollowedID: followedID,
+	}); err != nil {
+		return fiber.NewError(fiber.StatusInternalServerError, fmt.Sprintf("error checking follow: %+v", err))
+	} else if !exists {
+		return fiber.NewError(fiber.StatusNotFound, "follow not found")
+	}
+
 	if err := me.queries.DeleteFollow(context.Background(), repositry.DeleteFollowParams{
 		FollowerID: userID,
 		FollowedID: followedID,
@@ -335,56 +317,38 @@ func (me *App) handleUnfollow(c *fiber.Ctx) error {
 	return c.Status(fiber.StatusOK).SendString("user was unfollowed successfully")
 }
 
-func (me *App) handleGetAllFollowers(c *fiber.Ctx) error {
-	userID := getUserIDFromContext(c)
+// func (me *App) handleGetAllFollowers(c *fiber.Ctx) error {
+// 	userID := getUserIDFromContext(c)
+// 	limit := c.QueryInt("limit")
+// 	// encodedCursor := c.Query("cursor")
+// 	// return {payload: any, cursor: base64 string, hasMore: bool}
 
-	followersCount, err := me.queries.GetFollowersCount(context.Background(), userID)
-	if err != nil {
-		return fiber.NewError(fiber.StatusInternalServerError, fmt.Sprintf("error getting followers count: %+v", err))
-	}
+// 	followers, err := me.queries.GetFollowers(context.Background(), repositry.GetFollowersParams{
+// 		FollowedID: userID,
+// 		Limit:      pageSize,
+// 	})
+// 	if err != nil {
+// 		return fiber.NewError(fiber.StatusInternalServerError, fmt.Sprintf("error getting followers: %+v", err))
+// 	}
 
-	page := c.QueryInt("page")
-	if page < 1 {
-		page = 1
-	}
+// 	payload := make([]types.UserPayload, 0, len(followers))
+// 	for _, follower := range followers {
+// 		payload = append(payload, types.UserPayload{
+// 			ID:              follower.ID,
+// 			Name:            follower.Name,
+// 			Username:        follower.Username,
+// 			JoinedAt:        follower.JoinedAt,
+// 			PostsCount:      follower.PostsCount,
+// 			FollowingCount:  follower.FollowingCount,
+// 			FollowersCount:  follower.FollowersCount,
+// 			ProfileImageUrl: follower.ProfileImageUrl.String,
+// 		})
+// 	}
 
-	totalPages := math.Ceil(float64(followersCount) / pageSize)
-	if page > int(totalPages) {
-		return c.Status(fiber.StatusOK).JSON(types.ApiResponse{
-			Payload:    []any{},
-			TotalPages: int(totalPages),
-		})
-	}
-
-	offset := (page - 1) * pageSize
-	followers, err := me.queries.GetFollowers(context.Background(), repositry.GetFollowersParams{
-		FollowedID: userID,
-		Limit:      pageSize,
-		Offset:     int32(offset),
-	})
-	if err != nil {
-		return fiber.NewError(fiber.StatusInternalServerError, fmt.Sprintf("error getting followers: %+v", err))
-	}
-
-	payload := make([]types.UserPayload, 0, len(followers))
-	for _, follower := range followers {
-		payload = append(payload, types.UserPayload{
-			ID:              follower.ID,
-			Name:            follower.Name,
-			Username:        follower.Username,
-			JoinedAt:        follower.JoinedAt,
-			PostsCount:      follower.PostsCount,
-			FollowingCount:  follower.FollowingCount,
-			FollowersCount:  follower.FollowersCount,
-			ProfileImageUrl: follower.ProfileImageUrl.String,
-		})
-	}
-
-	return c.Status(fiber.StatusOK).JSON(types.ApiResponse{
-		Payload:    payload,
-		TotalPages: int(totalPages),
-	})
-}
+// 	return c.Status(fiber.StatusOK).JSON(types.ApiResponse{
+// 		Payload: payload,
+// 	})
+// }
 
 func (me *App) handleCreatePost(c *fiber.Ctx) error {
 	req := types.PostCreateOrUpdateRequest{}
@@ -722,16 +686,9 @@ func (me *App) handleGetAllPostViews(c *fiber.Ctx) error {
 
 	payload := make([]types.UserPayload, 0, len(users))
 	for _, user := range users {
-		payload = append(payload, types.UserPayload{
-			ID:              user.ID,
-			Name:            user.Name,
-			Username:        user.Username,
-			JoinedAt:        user.JoinedAt,
-			PostsCount:      user.PostsCount,
-			FollowingCount:  user.FollowingCount,
-			FollowersCount:  user.FollowersCount,
-			ProfileImageUrl: user.ProfileImageUrl.String,
-		})
+		var userPayload types.UserPayload
+		fillUserPayload(&userPayload, &user)
+		payload = append(payload, userPayload)
 	}
 
 	return c.Status(fiber.StatusOK).JSON(types.ApiResponse{
@@ -1056,8 +1013,10 @@ func (me *App) StartNotificationWorker(ctx context.Context) {
 	for {
 		select {
 		case notification := <-me.notificationChan:
+			fmt.Println("recieved notification")
 			if _, err := me.queries.CreateNotification(context.Background(), repositry.CreateNotificationParams{
 				ID:       notification.ID,
+				KindID:   notification.KindID,
 				UserID:   notification.UserID,
 				SenderID: notification.SenderID,
 				PostID:   notification.PostID,
@@ -1165,7 +1124,18 @@ func parseAndValidateJsonBody(c *fiber.Ctx, out any) error {
 		return fiber.NewError(fiber.StatusBadRequest, "invalid json body")
 	}
 	if err := utils.ValidateStruct(out); err != nil {
-		return fiber.NewError(fiber.StatusUnprocessableEntity, "invalid request data")
+		return fiber.NewError(fiber.StatusUnprocessableEntity, fmt.Sprintf("invalid request data: %+v", err))
 	}
 	return nil
+}
+
+func fillUserPayload(userPayload *types.UserPayload, repoUser *repositry.User) {
+	userPayload.ID = repoUser.ID
+	userPayload.Name = repoUser.Name
+	userPayload.Username = repoUser.Username
+	userPayload.JoinedAt = repoUser.JoinedAt
+	userPayload.PostsCount = repoUser.PostsCount
+	userPayload.FollowingCount = repoUser.FollowingCount
+	userPayload.FollowersCount = repoUser.FollowersCount
+	userPayload.ProfileImageUrl = repoUser.ProfileImageUrl.String
 }

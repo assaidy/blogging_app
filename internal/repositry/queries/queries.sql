@@ -47,6 +47,9 @@ DELETE FROM follows WHERE follower_id = $1 AND followed_id = $2;
 -- name: GetAllFollowersIDs :many
 SELECT follower_id FROM follows WHERE followed_id = $1;
 
+-- name: CheckFollow :one
+SELECT EXISTS(SELECT 1 FROM follows WHERE follower_id = $1 AND followed_id = $2);
+
 -- name: GetFollowersCount :one
 SELECT COUNT(*) FROM follows WHERE followed_id = $1;
 
@@ -68,7 +71,7 @@ INSERT INTO refresh_tokens(token, user_id, expires_at)
 VALUES($1, $2, $3);
 
 -- name: GetRefreshToken :one
-SELECT * FROM refresh_tokens WHERE token = $1 AND user_id = $2;
+SELECT * FROM refresh_tokens WHERE token = $1;
 
 -- name: DeleteRefreshToken :exec
 DELETE FROM refresh_tokens WHERE token = $1;

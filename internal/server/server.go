@@ -26,8 +26,9 @@ func NewAppServer(addr string, queries *repositry.Queries) App {
 			Prefork:      true,
 			ErrorHandler: customErrorHandler,
 		}),
-		addr:    addr,
-		queries: queries,
+		addr:             addr,
+		queries:          queries,
+		notificationChan: make(chan repositry.Notification, 1000),
 	}
 	return server
 }

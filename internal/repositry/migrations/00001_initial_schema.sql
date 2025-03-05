@@ -56,7 +56,7 @@ $$ LANGUAGE PLPGSQL;
 -- +goose StatementEnd
 
 CREATE TRIGGER trg_update_user_follow_counts
-AFTER INSERT OR UPDATE ON follows FOR EACH ROW
+AFTER INSERT OR DELETE ON follows FOR EACH ROW
 EXECUTE FUNCTION update_user_follow_counts();
 
 CREATE TABLE posts(

@@ -11,6 +11,7 @@ type ApiResponse struct {
 	RefreshToken string `json:"refreshToken,omitempty"`
 }
 
+// FIX: remove all *Count feilds
 type UserPayload struct {
 	ID              string    `json:"id"`
 	Name            string    `json:"name"`
@@ -41,17 +42,13 @@ type UserUpdateRequest struct {
 	ProfileImageUrl string `json:"profileImageUrl" validate:"customNoOuterSpaces"`
 }
 
-type GetAccessTokenRequest struct {
-	RefreshToken string `json:"refreshToken" validate:"required"`
-	UserID       string `json:"userID" validate:"required"`
-}
-
 type PostCreateOrUpdateRequest struct {
 	Title            string `json:"title" validate:"required,customNoOuterSpaces"`
 	Content          string `json:"content" validate:"required,customNoOuterSpaces"`
 	FeaturedImageUrl string `json:"featuredImageUrl" validate:"customNoOuterSpaces"`
 }
 
+// FIX: remove all *Count feilds
 type PostPayload struct {
 	ID               string         `json:"id"`
 	UserID           string         `json:"userID"`
