@@ -16,6 +16,9 @@ build:
 clean:
 	@rm -rf ./bin
 
+test:
+	@go test -v ./internal/...
+
 compose-up:
 	@docker-compose up
 

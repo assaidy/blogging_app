@@ -88,7 +88,7 @@ func (me *App) handleLogin(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusInternalServerError, fmt.Sprintf("error getting user: %+v", err))
 	}
 
-	if !utils.VerfityPassword(req.Password, user.HashedPassword) {
+	if !utils.VerifyPassword(req.Password, user.HashedPassword) {
 		return fiber.ErrUnauthorized
 	}
 
@@ -209,7 +209,7 @@ func (me *App) handleUpdateUser(c *fiber.Ctx) error {
 		}
 	}
 
-	if !utils.VerfityPassword(req.OldPassword, oldUser.HashedPassword) {
+	if !utils.VerifyPassword(req.OldPassword, oldUser.HashedPassword) {
 		return fiber.NewError(fiber.StatusForbidden, "invalid old password")
 	}
 

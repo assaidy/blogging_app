@@ -36,7 +36,7 @@ func ValidateStruct(s any) error {
 	if err := validatorInstance.Struct(s); err != nil {
 		errs := []string{}
 		for _, err := range err.(validator.ValidationErrors) {
-			errs = append(errs, fmt.Sprintf("%s: vaiolation in constarint '%s'", err.Field(), err.Tag()))
+			errs = append(errs, fmt.Sprintf("%s: violation in constraint '%s'", err.Field(), err.Tag()))
 		}
 		return errors.New(strings.Join(errs, ";"))
 	}

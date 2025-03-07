@@ -21,7 +21,6 @@ type RefreshToken struct {
 	ExpiresAt time.Time
 }
 
-// returns the token with expiration time.
 func GenerateRefreshToken() (RefreshToken, error) {
 	days, err := strconv.Atoi(os.Getenv("REFRESH_TOKEN_EXPIRATION_DAYS"))
 	if err != nil {
