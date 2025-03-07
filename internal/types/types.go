@@ -11,7 +11,6 @@ type ApiResponse struct {
 	RefreshToken string `json:"refreshToken,omitempty"`
 }
 
-// FIX: remove all *Count feilds
 type UserPayload struct {
 	ID              string    `json:"id"`
 	Name            string    `json:"name"`
@@ -48,7 +47,6 @@ type PostCreateOrUpdateRequest struct {
 	FeaturedImageUrl string `json:"featuredImageUrl" validate:"customNoOuterSpaces"`
 }
 
-// FIX: remove all *Count feilds
 type PostPayload struct {
 	ID               string                `json:"id"`
 	UserID           string                `json:"userID"`
@@ -62,7 +60,7 @@ type PostPayload struct {
 }
 
 type PostPayloadReaction struct {
-	Name  string `json:"name"`
+	Name  string `json:"name"` // the name of the reaction: like, dislike, ...
 	Count int64  `json:"count"`
 }
 

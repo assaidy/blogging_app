@@ -16,20 +16,26 @@ import (
 	"github.com/oklog/ulid/v2"
 )
 
+type RefreshToken struct {
+	Token     string
+	ExpiresAt time.Time
+}
+
 // returns the token with expiration time.
-func GenerateRefreshToken() (string, time.Time, error) {
+func GenerateRefreshToken() (RefreshToken, error) {
 	days, err := strconv.Atoi(os.Getenv("REFRESH_TOKEN_EXPIRATION_DAYS"))
 	if err != nil {
-		return "", time.Time{}, fmt.Errorf("non-numeric env value for REFRESH_TOKEN_EXPIRATION_DAYS")
+		return RefreshToken{}, fmt.Errorf("non-numeric env value for REFRESH_TOKEN_EXPIRATION_DAYS")
 	}
 	buf := make([]byte, 32)
 	if _, err := rand.Read(buf); err != nil {
-		return "", time.Time{}, fmt.Errorf("error generating random bytes: %w", err)
+		return RefreshToken{}, fmt.Errorf("error generating random bytes: %w", err)
 	}
-	// combine a ULID (for uniqueness and sortability) with the random bytes (encoded in hex).
-	token := ulid.Make().String() + hex.EncodeToString(buf)
-	exp := time.Now().Add(time.Hour * 24 * time.Duration(days))
-	return token, exp, nil
+	return RefreshToken{
+		// combine a ULID (for uniqueness and sortability) with the random bytes (encoded in hex).
+		Token:     ulid.Make().String() + hex.EncodeToString(buf),
+		ExpiresAt: time.Now().Add(time.Hour * 24 * time.Duration(days)),
+	}, nil
 }
 
 type claims struct {

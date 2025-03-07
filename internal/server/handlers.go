@@ -51,15 +51,15 @@ func (me *App) handleRegister(c *fiber.Ctx) error {
 	if err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, fmt.Sprintf("error creating access token: %+v", err))
 	}
-	refreshToken, expiresAt, err := utils.GenerateRefreshToken()
+	refreshToken, err := utils.GenerateRefreshToken()
 	if err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, fmt.Sprintf("error creating refresh token: %+v", err))
 	}
 
 	if err := me.queries.CreateRefreshToken(context.Background(), repositry.CreateRefreshTokenParams{
-		Token:     refreshToken,
+		Token:     refreshToken.Token,
 		UserID:    user.ID,
-		ExpiresAt: expiresAt,
+		ExpiresAt: refreshToken.ExpiresAt,
 	}); err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, fmt.Sprintf("error storing refresh token: %+v", err))
 	}
@@ -70,7 +70,7 @@ func (me *App) handleRegister(c *fiber.Ctx) error {
 	return c.Status(fiber.StatusCreated).JSON(types.ApiResponse{
 		Payload:      userPayload,
 		AccessToken:  accessToken,
-		RefreshToken: refreshToken,
+		RefreshToken: refreshToken.Token,
 	})
 }
 
@@ -96,15 +96,15 @@ func (me *App) handleLogin(c *fiber.Ctx) error {
 	if err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, fmt.Sprintf("error creating access token: %+v", err))
 	}
-	refreshToken, expiresAt, err := utils.GenerateRefreshToken()
+	refreshToken, err := utils.GenerateRefreshToken()
 	if err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, fmt.Sprintf("error creating refresh token: %+v", err))
 	}
 
 	if err := me.queries.CreateRefreshToken(context.Background(), repositry.CreateRefreshTokenParams{
-		Token:     refreshToken,
+		Token:     refreshToken.Token,
 		UserID:    user.ID,
-		ExpiresAt: expiresAt,
+		ExpiresAt: refreshToken.ExpiresAt,
 	}); err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, fmt.Sprintf("error storing refresh token: %+v", err))
 	}
@@ -115,7 +115,7 @@ func (me *App) handleLogin(c *fiber.Ctx) error {
 	return c.Status(fiber.StatusCreated).JSON(types.ApiResponse{
 		Payload:      userPayload,
 		AccessToken:  accessToken,
-		RefreshToken: refreshToken,
+		RefreshToken: refreshToken.Token,
 	})
 }
 
