@@ -2,6 +2,8 @@ package utils
 
 import (
 	"testing"
+
+	"github.com/assaidy/blogging_app/internal/utils"
 )
 
 type TestUser struct {
@@ -67,7 +69,7 @@ func TestValidateStruct(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := ValidateStruct(tt.input)
+			err := utils.ValidateStruct(tt.input)
 			if err != nil {
 				if tt.expectedErr == "" {
 					t.Errorf("Unexpected error: %v", err)

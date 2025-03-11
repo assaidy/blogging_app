@@ -2,7 +2,7 @@ include .env
 
 GOOSE_DRIVER=postgres
 GOOSE_DBSTRING=postgresql://$(PG_USER):$(PG_PASSWORD)@$(PG_HOST):$(PG_PORT)/$(PG_NAME)?sslmode=$(PG_SSLMODE)
-GOOSE_MIGRATION_DIR=./internal/repositry/migrations/
+GOOSE_MIGRATION_DIR=./internal/db/postgres_db/migrations/
 GOOSE_ENV=GOOSE_DRIVER="$(GOOSE_DRIVER)" GOOSE_DBSTRING="$(GOOSE_DBSTRING)" GOOSE_MIGRATION_DIR="$(GOOSE_MIGRATION_DIR)"
 
 all: build
@@ -11,13 +11,13 @@ run: build
 	@./bin/app
 
 build:
-	@go build -o ./bin/app ./cmd/main.go
+	@go build -o ./bin/app ./cmd/api/main.go
 
 clean:
 	@rm -rf ./bin
 
 test:
-	@go test -v ./internal/...
+	@go test -v ./tests/...
 
 compose-up:
 	@docker-compose up

@@ -1,4 +1,4 @@
-package main
+package postgres_db
 
 import (
 	"context"
@@ -7,30 +7,27 @@ import (
 	"os"
 	"time"
 
-	"github.com/assaidy/blogging_app/internal/repositry"
-	"github.com/assaidy/blogging_app/internal/server"
-	_ "github.com/joho/godotenv/autoload"
 	_ "github.com/lib/pq"
 )
 
-func main() {
+var DB *sql.DB
+
+func init() {
 	db, err := sql.Open("postgres", os.Getenv("PG_URL"))
 	if err != nil {
 		log.Fatal("error connecting to postgres db:", err)
 	}
 
-	if err := db.PingContext(context.Background()); err != nil {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	if err := db.PingContext(ctx); err != nil {
 		log.Fatal("error pinging postgres db:", err)
 	}
 
+	// TODO: set these variables in config package
 	db.SetMaxOpenConns(20)
 	db.SetConnMaxLifetime(10 * time.Minute)
 	db.SetMaxIdleConns(5)
 	db.SetConnMaxIdleTime(1 * time.Minute)
-
-	app := server.NewAppServer(":"+os.Getenv("PORT"), repositry.New(db))
-
-	if err := app.Run(); err != nil {
-		log.Fatal("error running server:", err)
-	}
 }

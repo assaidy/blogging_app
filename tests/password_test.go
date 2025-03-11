@@ -2,12 +2,14 @@ package utils
 
 import (
 	"testing"
+
+	"github.com/assaidy/blogging_app/internal/utils"
 )
 
 func TestHashPassword(t *testing.T) {
 	password := "mysecretpassword"
 
-	hashedPassword, err := HashPassword(password)
+	hashedPassword, err := utils.HashPassword(password)
 	if err != nil {
 		t.Fatalf("HashPassword failed: %v", err)
 	}
@@ -24,26 +26,26 @@ func TestHashPassword(t *testing.T) {
 func TestVerifyPassword(t *testing.T) {
 	password := "mysecretpassword"
 
-	hashedPassword, err := HashPassword(password)
+	hashedPassword, err := utils.HashPassword(password)
 	if err != nil {
 		t.Fatalf("HashPassword failed: %v", err)
 	}
 
-	if !VerifyPassword(password, hashedPassword) {
+	if !utils.VerifyPassword(password, hashedPassword) {
 		t.Error("VerifyPassword failed: correct password did not match")
 	}
 
-	if VerifyPassword("wrongpassword", hashedPassword) {
+	if utils.VerifyPassword("wrongpassword", hashedPassword) {
 		t.Error("VerifyPassword failed: incorrect password matched")
 	}
 }
 
 func TestVerifyPassword_EmptyInput(t *testing.T) {
-	if VerifyPassword("", "somehash") {
+	if utils.VerifyPassword("", "somehash") {
 		t.Error("VerifyPassword failed: empty password should not match")
 	}
 
-	if VerifyPassword("password", "") {
+	if utils.VerifyPassword("password", "") {
 		t.Error("VerifyPassword failed: empty hash should not match")
 	}
 }

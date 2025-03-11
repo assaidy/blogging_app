@@ -2,7 +2,7 @@
 // versions:
 //   sqlc v1.28.0
 
-package repositry
+package postgres_repo
 
 import (
 	"context"
