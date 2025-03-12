@@ -25,9 +25,10 @@ func init() {
 		log.Fatal("error pinging postgres db:", err)
 	}
 
-	// TODO: set these variables in config package
 	db.SetMaxOpenConns(20)
 	db.SetConnMaxLifetime(10 * time.Minute)
 	db.SetMaxIdleConns(5)
 	db.SetConnMaxIdleTime(1 * time.Minute)
+
+	DB = db
 }
