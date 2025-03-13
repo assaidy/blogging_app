@@ -14,9 +14,12 @@ import (
 )
 
 func HandleGetUserById(c *fiber.Ctx) error {
-	userID := c.Params("user_id")
+	userID, err := ulid.ParseStrict(c.Params("user_id"))
+	if err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, "invalid ID format")
+	}
 
-	user, err := queries.GetUserByID(context.Background(), userID)
+	user, err := queries.GetUserByID(context.Background(), userID.String())
 	if err != nil {
 		if repo.IsNotFoundError(err) {
 			return fiber.NewError(fiber.StatusNotFound, "user not found")
@@ -111,14 +114,17 @@ func HandleDeleteUser(c *fiber.Ctx) error {
 }
 
 func HandleFollow(c *fiber.Ctx) error {
-	followedID := c.Params("followed_id")
+	followedID, err := ulid.ParseStrict(c.Params("followed_id"))
+	if err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, "invalid ID format")
+	}
 	userID := getUserIDFromContext(c)
 
-	if userID == followedID {
+	if userID == followedID.String() {
 		return fiber.NewError(fiber.StatusForbidden, "user can't unfollow himself")
 	}
 
-	if exists, err := queries.CheckUserID(context.Background(), followedID); err != nil {
+	if exists, err := queries.CheckUserID(context.Background(), followedID.String()); err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, fmt.Sprintf("error checking user ID: %+v", err))
 	} else if !exists {
 		return fiber.NewError(fiber.StatusNotFound, "user not found")
@@ -126,7 +132,7 @@ func HandleFollow(c *fiber.Ctx) error {
 
 	if exists, err := queries.CheckFollow(context.Background(), postgres_repo.CheckFollowParams{
 		FollowerID: userID,
-		FollowedID: followedID,
+		FollowedID: followedID.String(),
 	}); err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, fmt.Sprintf("error checking follow: %+v", err))
 	} else if exists {
@@ -135,7 +141,7 @@ func HandleFollow(c *fiber.Ctx) error {
 
 	if err := queries.CreateFollow(context.Background(), postgres_repo.CreateFollowParams{
 		FollowerID: userID,
-		FollowedID: followedID,
+		FollowedID: followedID.String(),
 	}); err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, fmt.Sprintf("error creating follow: %+v", err))
 	}
@@ -143,22 +149,25 @@ func HandleFollow(c *fiber.Ctx) error {
 	notificationChan <- postgres_repo.Notification{
 		ID:       ulid.Make().String(),
 		KindID:   repo.NotificationKindNewFollower,
-		UserID:   followedID,
-		SenderID: sql.NullString{Valid: true, String: userID},
+		UserID:   followedID.String(),
+		SenderID: userID,
 	}
 
 	return c.Status(fiber.StatusOK).SendString("user was followed successfully")
 }
 
 func HandleUnfollow(c *fiber.Ctx) error {
-	followedID := c.Params("followed_id")
+	followedID, err := ulid.ParseStrict(c.Params("followed_id"))
+	if err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, "invalid ID fromat")
+	}
 	userID := getUserIDFromContext(c)
 
-	if userID == followedID {
+	if userID == followedID.String() {
 		return fiber.NewError(fiber.StatusForbidden, "user can't follow himself")
 	}
 
-	if exists, err := queries.CheckUserID(context.Background(), followedID); err != nil {
+	if exists, err := queries.CheckUserID(context.Background(), followedID.String()); err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, fmt.Sprintf("error checking user ID: %+v", err))
 	} else if !exists {
 		return fiber.NewError(fiber.StatusNotFound, "user not found")
@@ -166,7 +175,7 @@ func HandleUnfollow(c *fiber.Ctx) error {
 
 	if exists, err := queries.CheckFollow(context.Background(), postgres_repo.CheckFollowParams{
 		FollowerID: userID,
-		FollowedID: followedID,
+		FollowedID: followedID.String(),
 	}); err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, fmt.Sprintf("error checking follow: %+v", err))
 	} else if !exists {
@@ -175,7 +184,7 @@ func HandleUnfollow(c *fiber.Ctx) error {
 
 	if err := queries.DeleteFollow(context.Background(), postgres_repo.DeleteFollowParams{
 		FollowerID: userID,
-		FollowedID: followedID,
+		FollowedID: followedID.String(),
 	}); err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, fmt.Sprintf("error deleting follow: %+v", err))
 	}

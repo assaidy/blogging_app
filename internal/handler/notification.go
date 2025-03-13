@@ -9,6 +9,7 @@ import (
 	"github.com/assaidy/blogging_app/internal/repo/postgres_repo"
 	"github.com/assaidy/blogging_app/internal/types"
 	"github.com/gofiber/fiber/v2"
+	"github.com/oklog/ulid/v2"
 )
 
 var (
@@ -60,11 +61,14 @@ func HandleGetUnreadNotificationsCount(c *fiber.Ctx) error {
 }
 
 func HandleMarkNotificationAsRead(c *fiber.Ctx) error {
-	notificatoinID := c.Params("notification_id")
+	notificatoinID, err := ulid.ParseStrict(c.Params("notification_id"))
+	if err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, "invalid ID fromat")
+	}
 	userID := getUserIDFromContext(c)
 
 	if exists, err := queries.CheckNotificationForUser(context.Background(), postgres_repo.CheckNotificationForUserParams{
-		ID:     notificatoinID,
+		ID:     notificatoinID.String(),
 		UserID: userID,
 	}); err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, fmt.Sprintf("error checking notification: %+v", err))
@@ -72,7 +76,7 @@ func HandleMarkNotificationAsRead(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusNotFound, "notification not found")
 	}
 
-	if err := queries.MarkNotificationAsRead(context.Background(), notificatoinID); err != nil {
+	if err := queries.MarkNotificationAsRead(context.Background(), notificatoinID.String()); err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, fmt.Sprintf("error marking notification as read: %+v", err))
 	}
 

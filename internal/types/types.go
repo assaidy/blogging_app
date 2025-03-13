@@ -6,7 +6,6 @@ import (
 
 type ApiResponse struct {
 	Payload      any    `json:"payload,omitempty"`
-	TotalPages   int    `json:"totalPages,omitempty"`
 	AccessToken  string `json:"accessToken,omitempty"`
 	RefreshToken string `json:"refreshToken,omitempty"`
 }

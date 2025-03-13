@@ -28,7 +28,7 @@ func mountRoutes(app *fiber.App) {
 		v1.Get("/users/username/:username", handler.HandleGetUserByUsername)
 		v1.Put("/users", middleware.Auth, handler.HandleUpdateUser) // gets id from context
 		v1.Delete("/users", middleware.Auth, handler.HandleDeleteUser)
-		// TODO: get all users with: filteration -> sorting -> pagination
+		// v1.Get("/users", middleware.Auth, handler.HandleGetAllUsers)
 
 		v1.Post("/follow/:followed_id", middleware.Auth, handler.HandleFollow)
 		v1.Post("/unfollow/:followed_id", middleware.Auth, handler.HandleUnfollow)
@@ -39,7 +39,8 @@ func mountRoutes(app *fiber.App) {
 		v1.Put("/posts/:post_id", middleware.Auth, handler.HandleUpdatePost)
 		v1.Delete("/posts/:post_id", middleware.Auth, handler.HandleDeletePost)
 		// v1.Get("users/:user_id/posts", handler.HandleGetAllUserPosts)
-		// TODO: get all posts with: filteration -> sorting -> pagination
+		// v1.Get("posts", handler.HandleGetAllPosts)
+		// get all posts with: filteration -> sorting -> pagination
 
 		v1.Post("/posts/:post_id/views", middleware.Auth, handler.HandleViewPost)
 		// v1.Get("/posts/:post_id/views", mwAuth, handler.HandleGetAllPostViews)
@@ -75,7 +76,6 @@ func main() {
 
 	// start server listening
 	go func() {
-		// TODO: get port from config package
 		if err := app.Listen(":" + os.Getenv("PORT")); err != nil {
 			log.Fatal(err)
 		}

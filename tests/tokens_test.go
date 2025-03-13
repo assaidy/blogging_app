@@ -9,8 +9,6 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-// TODO: move to tests package
-
 func TestGenerateRefreshToken(t *testing.T) {
 	os.Setenv("REFRESH_TOKEN_EXPIRATION_DAYS", "7")
 	defer os.Unsetenv("REFRESH_TOKEN_EXPIRATION_DAYS")

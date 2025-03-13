@@ -13,15 +13,6 @@ import (
 
 var queries = postgres_repo.New(postgres_db.DB)
 
-// TODO: use these
-func internalServerError(msg string) *fiber.Error {
-	return fiber.NewError(fiber.StatusInternalServerError, msg)
-}
-
-func conflictError(msg string) *fiber.Error {
-	return fiber.NewError(fiber.StatusConflict, msg)
-}
-
 // getUserIDFromContext retrieves the user ID from the context, which is set by the authentication middleware.
 // The user ID is stored in the context under the key "userID" and is expected to be a string.
 func getUserIDFromContext(c *fiber.Ctx) string {

@@ -12,8 +12,6 @@ import (
 	"github.com/oklog/ulid/v2"
 )
 
-// TODO: get vars from config package
-
 type RefreshToken struct {
 	Token     string
 	ExpiresAt time.Time

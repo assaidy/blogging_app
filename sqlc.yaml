@@ -10,4 +10,3 @@ sql:
         overrides:
           - db_type: "ulid"
             go_type: "string"
-          
