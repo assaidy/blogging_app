@@ -45,19 +45,13 @@ SELECT EXISTS(SELECT 1 FROM follows WHERE follower_id = $1 AND followed_id = $2)
 -- name: GetFollowersCount :one
 SELECT COUNT(*) FROM follows WHERE followed_id = $1;
 
--- name: GetFollowers :many
-SELECT users.*
-FROM follows
-JOIN users ON follows.follower_id = users.id
-WHERE followed_id = $1
-ORDER by follows.created_at
-LIMIT $2
-OFFSET $3;
-
 -- name: GetAllUsers :many
 SELECT *
 FROM users
 WHERE
+     -- filter
+    (name ILIKE '%' || sqlc.arg(Name)::VARCHAR || '%' OR username ILIKE '%' || sqlc.arg(Username)::VARCHAR || '%') AND
+     -- cursor
     (sqlc.arg(FollowersCount)::INTEGER = 0 OR followers_count <= sqlc.arg(FollowersCount)::INTEGER) AND
     (sqlc.arg(PostsCount)::INTEGER = 0 OR posts_count <= sqlc.arg(PostsCount)::INTEGER) AND
     (sqlc.arg(ID)::VARCHAR = '' OR ID <= sqlc.arg(ID)::VARCHAR)
@@ -66,3 +60,15 @@ ORDER BY
     posts_count DESC,
     id DESC
 LIMIT $1;
+
+-- name: GetAllFollowers :many
+SELECT users.*
+FROM follows
+JOIN users ON follows.follower_id = users.id
+WHERE
+    -- filter
+    followed_id = $1 AND
+    -- cursor
+    (sqlc.arg(ID)::VARCHAR = '' OR users.id <= sqlc.arg(ID)::VARCHAR)
+ORDER BY users.id DESC
+LIMIT $2;

@@ -124,61 +124,27 @@ func (q *Queries) DeleteUser(ctx context.Context, id string) error {
 	return err
 }
 
-const getAllFollowersIDs = `-- name: GetAllFollowersIDs :many
-SELECT follower_id FROM follows WHERE followed_id = $1
-`
-
-func (q *Queries) GetAllFollowersIDs(ctx context.Context, followedID string) ([]string, error) {
-	rows, err := q.db.QueryContext(ctx, getAllFollowersIDs, followedID)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []string
-	for rows.Next() {
-		var follower_id string
-		if err := rows.Scan(&follower_id); err != nil {
-			return nil, err
-		}
-		items = append(items, follower_id)
-	}
-	if err := rows.Close(); err != nil {
-		return nil, err
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
-const getAllUsers = `-- name: GetAllUsers :many
-SELECT id, name, username, hashed_password, joined_at, posts_count, following_count, followers_count, profile_image_url
-FROM users
+const getAllFollowers = `-- name: GetAllFollowers :many
+SELECT users.id, users.name, users.username, users.hashed_password, users.joined_at, users.posts_count, users.following_count, users.followers_count, users.profile_image_url
+FROM follows
+JOIN users ON follows.follower_id = users.id
 WHERE
-    ($2::INTEGER = 0 OR followers_count <= $2::INTEGER) AND
-    ($3::INTEGER = 0 OR posts_count <= $3::INTEGER) AND
-    ($4::VARCHAR = '' OR ID <= $4::VARCHAR)
-ORDER BY
-    followers_count DESC,
-    posts_count DESC,
-    id DESC
-LIMIT $1
+    -- filter
+    followed_id = $1 AND
+    -- cursor
+    ($3::VARCHAR = '' OR users.id <= $3::VARCHAR)
+ORDER BY users.id DESC
+LIMIT $2
 `
 
-type GetAllUsersParams struct {
-	Limit          int32
-	Followerscount int32
-	Postscount     int32
-	ID             string
+type GetAllFollowersParams struct {
+	FollowedID string
+	Limit      int32
+	ID         string
 }
 
-func (q *Queries) GetAllUsers(ctx context.Context, arg GetAllUsersParams) ([]User, error) {
-	rows, err := q.db.QueryContext(ctx, getAllUsers,
-		arg.Limit,
-		arg.Followerscount,
-		arg.Postscount,
-		arg.ID,
-	)
+func (q *Queries) GetAllFollowers(ctx context.Context, arg GetAllFollowersParams) ([]User, error) {
+	rows, err := q.db.QueryContext(ctx, getAllFollowers, arg.FollowedID, arg.Limit, arg.ID)
 	if err != nil {
 		return nil, err
 	}
@@ -210,24 +176,68 @@ func (q *Queries) GetAllUsers(ctx context.Context, arg GetAllUsersParams) ([]Use
 	return items, nil
 }
 
-const getFollowers = `-- name: GetFollowers :many
-SELECT users.id, users.name, users.username, users.hashed_password, users.joined_at, users.posts_count, users.following_count, users.followers_count, users.profile_image_url
-FROM follows
-JOIN users ON follows.follower_id = users.id
-WHERE followed_id = $1
-ORDER by follows.created_at
-LIMIT $2
-OFFSET $3
+const getAllFollowersIDs = `-- name: GetAllFollowersIDs :many
+SELECT follower_id FROM follows WHERE followed_id = $1
 `
 
-type GetFollowersParams struct {
-	FollowedID string
-	Limit      int32
-	Offset     int32
+func (q *Queries) GetAllFollowersIDs(ctx context.Context, followedID string) ([]string, error) {
+	rows, err := q.db.QueryContext(ctx, getAllFollowersIDs, followedID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []string
+	for rows.Next() {
+		var follower_id string
+		if err := rows.Scan(&follower_id); err != nil {
+			return nil, err
+		}
+		items = append(items, follower_id)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
-func (q *Queries) GetFollowers(ctx context.Context, arg GetFollowersParams) ([]User, error) {
-	rows, err := q.db.QueryContext(ctx, getFollowers, arg.FollowedID, arg.Limit, arg.Offset)
+const getAllUsers = `-- name: GetAllUsers :many
+SELECT id, name, username, hashed_password, joined_at, posts_count, following_count, followers_count, profile_image_url
+FROM users
+WHERE
+     -- filter
+    (name ILIKE '%' || $2::VARCHAR || '%' OR username ILIKE '%' || $3::VARCHAR || '%') AND
+     -- cursor
+    ($4::INTEGER = 0 OR followers_count <= $4::INTEGER) AND
+    ($5::INTEGER = 0 OR posts_count <= $5::INTEGER) AND
+    ($6::VARCHAR = '' OR ID <= $6::VARCHAR)
+ORDER BY
+    followers_count DESC,
+    posts_count DESC,
+    id DESC
+LIMIT $1
+`
+
+type GetAllUsersParams struct {
+	Limit          int32
+	Name           string
+	Username       string
+	Followerscount int32
+	Postscount     int32
+	ID             string
+}
+
+func (q *Queries) GetAllUsers(ctx context.Context, arg GetAllUsersParams) ([]User, error) {
+	rows, err := q.db.QueryContext(ctx, getAllUsers,
+		arg.Limit,
+		arg.Name,
+		arg.Username,
+		arg.Followerscount,
+		arg.Postscount,
+		arg.ID,
+	)
 	if err != nil {
 		return nil, err
 	}

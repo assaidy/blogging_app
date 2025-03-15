@@ -26,21 +26,20 @@ func mountRoutes(app *fiber.App) {
 
 		v1.Get("/users/id/:user_id", handler.HandleGetUserById)
 		v1.Get("/users/username/:username", handler.HandleGetUserByUsername)
-		v1.Put("/users", middleware.Auth, handler.HandleUpdateUser) // gets id from context
+		v1.Put("/users", middleware.Auth, handler.HandleUpdateUser)
 		v1.Delete("/users", middleware.Auth, handler.HandleDeleteUser)
 		v1.Get("/users", middleware.Auth, handler.HandleGetAllUsers)
 
 		v1.Post("/follow/:followed_id", middleware.Auth, handler.HandleFollow)
 		v1.Post("/unfollow/:followed_id", middleware.Auth, handler.HandleUnfollow)
-		// v1.Get("/users/:user_id/followers", mwAuth, handler.HandleGetAllFollowers)
+		v1.Get("/users/:user_id/followers", middleware.Auth, handler.HandleGetAllFollowers)
 
 		v1.Post("/posts", middleware.Auth, handler.HandleCreatePost)
 		v1.Get("/posts/:post_id", handler.HandleGetPost)
 		v1.Put("/posts/:post_id", middleware.Auth, handler.HandleUpdatePost)
 		v1.Delete("/posts/:post_id", middleware.Auth, handler.HandleDeletePost)
-		// v1.Get("users/:user_id/posts", handler.HandleGetAllUserPosts)
-		// v1.Get("posts", handler.HandleGetAllPosts)
-		// get all posts with: filteration -> sorting -> pagination
+		// v1.Get("users/:user_id/posts", middleware.Auth, handler.HandleGetAllUserPosts)
+		// v1.Get("posts", middleware.Auth, handler.HandleGetAllPosts)
 
 		v1.Post("/posts/:post_id/views", middleware.Auth, handler.HandleViewPost)
 		// v1.Get("/posts/:post_id/views", mwAuth, handler.HandleGetAllPostViews)

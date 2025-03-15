@@ -199,16 +199,20 @@ func HandleGetAllUsers(c *fiber.Ctx) error {
 	}
 
 	var requestCursor usersCursor
-	err := requestCursor.decodeBase64(c.Query("cursor"))
-	if err != nil {
+	if err := decodeBase64AndUnmarshalJson(&requestCursor, c.Query("cursor")); err != nil {
 		return fiber.NewError(fiber.StatusBadRequest, "invalid cursor format")
 	}
 
 	users, err := queries.GetAllUsers(context.Background(), postgres_repo.GetAllUsersParams{
+		// == cursor
 		Followerscount: int32(requestCursor.FollowersCount),
 		Postscount:     int32(requestCursor.PostsCount),
 		ID:             requestCursor.ID,
-		Limit:          int32(limit + 1),
+		// == filter
+		Name:     c.Query("name"),
+		Username: c.Query("username"),
+		// == limit
+		Limit: int32(limit + 1),
 	})
 	if err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, fmt.Sprintf("error getting users: %+v", err))
@@ -222,7 +226,7 @@ func HandleGetAllUsers(c *fiber.Ctx) error {
 			PostsCount:     int(users[limit].PostsCount),
 			ID:             users[limit].ID,
 		}
-		encodedResponseCursor, err = responseCursor.encodeBase64()
+		encodedResponseCursor, err = marshalJsonAndEncodeBase64(responseCursor)
 		if err != nil {
 			return fiber.NewError(fiber.StatusInternalServerError, fmt.Sprintf("error encoding cursor: %+v", err))
 		}
@@ -233,6 +237,57 @@ func HandleGetAllUsers(c *fiber.Ctx) error {
 	for _, user := range users {
 		var userPayload types.UserPayload
 		fillUserPayload(&userPayload, &user)
+		payload = append(payload, userPayload)
+	}
+
+	return c.Status(fiber.StatusOK).JSON(cursoredApiResponse{
+		Payload:    payload,
+		Cursor:     encodedResponseCursor,
+		HasMore:    hasMore,
+		TotalCount: len(payload),
+	})
+}
+
+func HandleGetAllFollowers(c *fiber.Ctx) error {
+	limit := c.QueryInt("limit")
+	if limit < 10 || limit > 100 {
+		limit = 10
+	}
+
+	var requestCursor followersCursor
+	if err := decodeBase64AndUnmarshalJson(&requestCursor, c.Query("cursor")); err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, "invalid cursor format")
+	}
+
+	followers, err := queries.GetAllFollowers(context.Background(), postgres_repo.GetAllFollowersParams{
+		// == filter
+		FollowedID: getUserIDFromContext(c),
+		// == cursor
+		ID: requestCursor.ID,
+		// == limit
+		Limit: int32(limit + 1),
+	})
+	if err != nil {
+		return fiber.NewError(fiber.StatusInternalServerError, fmt.Sprintf("error getting followers: %+v", err))
+	}
+
+	var encodedResponseCursor string
+	hasMore := limit < len(followers)
+	if hasMore {
+		responseCursor := followersCursor{
+			ID: followers[limit].ID,
+		}
+		encodedResponseCursor, err = marshalJsonAndEncodeBase64(responseCursor)
+		if err != nil {
+			return fiber.NewError(fiber.StatusInternalServerError, fmt.Sprintf("error encoding cursor: %+v", err))
+		}
+		followers = followers[:limit]
+	}
+
+	payload := make([]types.UserPayload, 0, len(followers))
+	for _, follower := range followers {
+		var userPayload types.UserPayload
+		fillUserPayload(&userPayload, &follower)
 		payload = append(payload, userPayload)
 	}
 

@@ -25,10 +25,18 @@ type cursoredApiResponse struct {
 type usersCursor struct {
 	FollowersCount int    `json:"followersCount"`
 	PostsCount     int    `json:"postsCount"`
-	ID             string `json:"id"`
+	ID             string `json:"id" validate:"customULID"`
 }
 
-func (me *usersCursor) decodeBase64(base64String string) error {
+type followersCursor struct {
+	ID string `json:"id" validate:"customULID"`
+}
+
+// decodeBase64AndUnmarshalJson decodes a base64-encoded string and unmarshals it into the provided output struct.
+// It first checks if the base64String is empty, returning nil if it is. Otherwise, it decodes the base64 string
+// into JSON bytes, unmarshals those bytes into the output struct, and then validates the struct using utils.ValidateStruct.
+// Returns an error if any step in the process fails.
+func decodeBase64AndUnmarshalJson(out any, base64String string) error {
 	if base64String == "" {
 		return nil
 	}
@@ -36,18 +44,18 @@ func (me *usersCursor) decodeBase64(base64String string) error {
 	if err != nil {
 		return err
 	}
-	err = json.Unmarshal(jsonBytes, me)
+	err = json.Unmarshal(jsonBytes, out)
 	if err != nil {
 		return err
 	}
-	if !utils.IsValidEncodedULID(me.ID) {
-		return fmt.Errorf("invalid ulid string")
-	}
-	return nil
+	err = utils.ValidateStruct(out)
+	return err
 }
 
-func (me *usersCursor) encodeBase64() (string, error) {
-	jsonBytes, err := json.Marshal(me)
+// marshalJsonAndEncodeBase64 marshals the provided source struct into JSON bytes and then encodes those bytes
+// into a base64-encoded string. Returns the base64-encoded string or an error if the marshaling fails.
+func marshalJsonAndEncodeBase64(src any) (string, error) {
+	jsonBytes, err := json.Marshal(src)
 	if err != nil {
 		return "", err
 	}

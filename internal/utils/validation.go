@@ -22,8 +22,15 @@ func customUsername(fl validator.FieldLevel) bool {
 
 func customNoOuterSpaces(fl validator.FieldLevel) bool {
 	val := fl.Field().String()
-	if len(val) > 0 {
+	if val != "" {
 		return noOuterSpacesRegex.MatchString(val)
+	}
+	return true
+}
+func customULID(fl validator.FieldLevel) bool {
+	val := fl.Field().String()
+	if val != "" {
+		return IsValidEncodedULID(val)
 	}
 	return true
 }
@@ -31,6 +38,7 @@ func customNoOuterSpaces(fl validator.FieldLevel) bool {
 func init() {
 	validatorInstance.RegisterValidation("customUsername", customUsername)
 	validatorInstance.RegisterValidation("customNoOuterSpaces", customNoOuterSpaces)
+	validatorInstance.RegisterValidation("customULID", customULID)
 }
 
 func ValidateStruct(s any) error {
