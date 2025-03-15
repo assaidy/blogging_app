@@ -1,6 +1,8 @@
 package handler
 
 import (
+	"encoding/base64"
+	"encoding/json"
 	"fmt"
 
 	"github.com/assaidy/blogging_app/internal/db/postgres_db"
@@ -12,6 +14,45 @@ import (
 )
 
 var queries = postgres_repo.New(postgres_db.DB)
+
+type cursoredApiResponse struct {
+	Payload    any    `json:"payload"`
+	Cursor     string `json:"cursor"`
+	HasMore    bool   `json:"hasNext"`
+	TotalCount int    `json:"totalCount"`
+}
+
+type usersCursor struct {
+	FollowersCount int    `json:"followersCount"`
+	PostsCount     int    `json:"postsCount"`
+	ID             string `json:"id"`
+}
+
+func (me *usersCursor) decodeBase64(base64String string) error {
+	if base64String == "" {
+		return nil
+	}
+	jsonBytes, err := base64.StdEncoding.DecodeString(base64String)
+	if err != nil {
+		return err
+	}
+	err = json.Unmarshal(jsonBytes, me)
+	if err != nil {
+		return err
+	}
+	if !utils.IsValidEncodedULID(me.ID) {
+		return fmt.Errorf("invalid ulid string")
+	}
+	return nil
+}
+
+func (me *usersCursor) encodeBase64() (string, error) {
+	jsonBytes, err := json.Marshal(me)
+	if err != nil {
+		return "", err
+	}
+	return base64.StdEncoding.EncodeToString(jsonBytes), nil
+}
 
 // getUserIDFromContext retrieves the user ID from the context, which is set by the authentication middleware.
 // The user ID is stored in the context under the key "userID" and is expected to be a string.

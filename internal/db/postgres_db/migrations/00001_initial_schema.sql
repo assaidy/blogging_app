@@ -1,4 +1,5 @@
 -- +goose Up
+-- TODO: remove this and use a uuid with `generate_ulid_as_uuid()` default value
 CREATE DOMAIN ulid AS VARCHAR(26)
 CHECK (VALUE ~ '^[0-9a-zA-Z]{26}$');
 

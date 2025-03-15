@@ -28,7 +28,7 @@ func mountRoutes(app *fiber.App) {
 		v1.Get("/users/username/:username", handler.HandleGetUserByUsername)
 		v1.Put("/users", middleware.Auth, handler.HandleUpdateUser) // gets id from context
 		v1.Delete("/users", middleware.Auth, handler.HandleDeleteUser)
-		// v1.Get("/users", middleware.Auth, handler.HandleGetAllUsers)
+		v1.Get("/users", middleware.Auth, handler.HandleGetAllUsers)
 
 		v1.Post("/follow/:followed_id", middleware.Auth, handler.HandleFollow)
 		v1.Post("/unfollow/:followed_id", middleware.Auth, handler.HandleUnfollow)

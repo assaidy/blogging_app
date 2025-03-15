@@ -4,6 +4,7 @@ import (
 	"time"
 )
 
+// TODO: remove types package and move all types to their related packages
 type ApiResponse struct {
 	Payload      any    `json:"payload,omitempty"`
 	AccessToken  string `json:"accessToken,omitempty"`

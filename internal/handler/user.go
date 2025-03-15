@@ -191,3 +191,55 @@ func HandleUnfollow(c *fiber.Ctx) error {
 
 	return c.Status(fiber.StatusOK).SendString("user was unfollowed successfully")
 }
+
+func HandleGetAllUsers(c *fiber.Ctx) error {
+	limit := c.QueryInt("limit")
+	if limit < 10 || limit > 100 {
+		limit = 10
+	}
+
+	var requestCursor usersCursor
+	err := requestCursor.decodeBase64(c.Query("cursor"))
+	if err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, "invalid cursor format")
+	}
+
+	users, err := queries.GetAllUsers(context.Background(), postgres_repo.GetAllUsersParams{
+		Followerscount: int32(requestCursor.FollowersCount),
+		Postscount:     int32(requestCursor.PostsCount),
+		ID:             requestCursor.ID,
+		Limit:          int32(limit + 1),
+	})
+	if err != nil {
+		return fiber.NewError(fiber.StatusInternalServerError, fmt.Sprintf("error getting users: %+v", err))
+	}
+
+	var encodedResponseCursor string
+	hasMore := limit < len(users)
+	if hasMore {
+		responseCursor := usersCursor{
+			FollowersCount: int(users[limit].FollowersCount),
+			PostsCount:     int(users[limit].PostsCount),
+			ID:             users[limit].ID,
+		}
+		encodedResponseCursor, err = responseCursor.encodeBase64()
+		if err != nil {
+			return fiber.NewError(fiber.StatusInternalServerError, fmt.Sprintf("error encoding cursor: %+v", err))
+		}
+		users = users[:limit]
+	}
+
+	payload := make([]types.UserPayload, 0, len(users))
+	for _, user := range users {
+		var userPayload types.UserPayload
+		fillUserPayload(&userPayload, &user)
+		payload = append(payload, userPayload)
+	}
+
+	return c.Status(fiber.StatusOK).JSON(cursoredApiResponse{
+		Payload:    payload,
+		Cursor:     encodedResponseCursor,
+		HasMore:    hasMore,
+		TotalCount: len(payload),
+	})
+}

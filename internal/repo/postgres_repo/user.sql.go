@@ -151,6 +151,65 @@ func (q *Queries) GetAllFollowersIDs(ctx context.Context, followedID string) ([]
 	return items, nil
 }
 
+const getAllUsers = `-- name: GetAllUsers :many
+SELECT id, name, username, hashed_password, joined_at, posts_count, following_count, followers_count, profile_image_url
+FROM users
+WHERE
+    ($2::INTEGER = 0 OR followers_count <= $2::INTEGER) AND
+    ($3::INTEGER = 0 OR posts_count <= $3::INTEGER) AND
+    ($4::VARCHAR = '' OR ID <= $4::VARCHAR)
+ORDER BY
+    followers_count DESC,
+    posts_count DESC,
+    id DESC
+LIMIT $1
+`
+
+type GetAllUsersParams struct {
+	Limit          int32
+	Followerscount int32
+	Postscount     int32
+	ID             string
+}
+
+func (q *Queries) GetAllUsers(ctx context.Context, arg GetAllUsersParams) ([]User, error) {
+	rows, err := q.db.QueryContext(ctx, getAllUsers,
+		arg.Limit,
+		arg.Followerscount,
+		arg.Postscount,
+		arg.ID,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []User
+	for rows.Next() {
+		var i User
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.Username,
+			&i.HashedPassword,
+			&i.JoinedAt,
+			&i.PostsCount,
+			&i.FollowingCount,
+			&i.FollowersCount,
+			&i.ProfileImageUrl,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const getFollowers = `-- name: GetFollowers :many
 SELECT users.id, users.name, users.username, users.hashed_password, users.joined_at, users.posts_count, users.following_count, users.followers_count, users.profile_image_url
 FROM follows

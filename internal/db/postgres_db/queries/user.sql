@@ -53,3 +53,16 @@ WHERE followed_id = $1
 ORDER by follows.created_at
 LIMIT $2
 OFFSET $3;
+
+-- name: GetAllUsers :many
+SELECT *
+FROM users
+WHERE
+    (sqlc.arg(FollowersCount)::INTEGER = 0 OR followers_count <= sqlc.arg(FollowersCount)::INTEGER) AND
+    (sqlc.arg(PostsCount)::INTEGER = 0 OR posts_count <= sqlc.arg(PostsCount)::INTEGER) AND
+    (sqlc.arg(ID)::VARCHAR = '' OR ID <= sqlc.arg(ID)::VARCHAR)
+ORDER BY
+    followers_count DESC,
+    posts_count DESC,
+    id DESC
+LIMIT $1;
