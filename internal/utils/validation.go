@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/go-playground/validator/v10"
+	"github.com/oklog/ulid/v2"
 )
 
 var (
@@ -41,4 +42,9 @@ func ValidateStruct(s any) error {
 		return errors.New(strings.Join(errs, ";"))
 	}
 	return nil
+}
+
+func IsValidEncodedULID(encodedULID string) bool {
+	_, err := ulid.ParseStrict(encodedULID)
+	return err == nil
 }

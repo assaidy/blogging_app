@@ -12,7 +12,6 @@ import (
 	"github.com/assaidy/blogging_app/internal/utils"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/logger"
-	"github.com/oklog/ulid/v2"
 )
 
 var repo = postgres_repo.New(postgres_db.DB)
@@ -33,19 +32,18 @@ func Auth(c *fiber.Ctx) error {
 	if claims.ExpiresAt.Sub(time.Now()) < 0 {
 		return fiber.ErrUnauthorized
 	}
-	userID, err := ulid.ParseStrict(claims.UserID)
-	if err != nil {
+	if !utils.IsValidEncodedULID(claims.UserID) {
 		return fiber.ErrUnauthorized // malformed ulid -> invalid token
 	}
 	// NOTE: if the users deleted his account, but his access token hasn't expired yet,
 	// and we got a request that uses mwAuth(get's userid from context),
 	// we need to ensure that user exists.
-	if exists, err := repo.CheckUserID(context.Background(), userID.String()); err != nil {
+	if exists, err := repo.CheckUserID(context.Background(), claims.UserID); err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, fmt.Sprintf("error checking user ID: %+v", err))
 	} else if !exists {
 		return fiber.ErrUnauthorized
 	}
-	c.Locals(AuthUserID, userID)
+	c.Locals(AuthUserID, claims.UserID)
 	return c.Next()
 }
 
