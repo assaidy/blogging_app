@@ -212,7 +212,7 @@ WHERE
      -- cursor
     ($4::INTEGER = 0 OR followers_count <= $4::INTEGER) AND
     ($5::INTEGER = 0 OR posts_count <= $5::INTEGER) AND
-    ($6::VARCHAR = '' OR ID <= $6::VARCHAR)
+    ($6::VARCHAR = '' OR id <= $6::VARCHAR)
 ORDER BY
     followers_count DESC,
     posts_count DESC,
@@ -224,8 +224,8 @@ type GetAllUsersParams struct {
 	Limit          int32
 	Name           string
 	Username       string
-	Followerscount int32
-	Postscount     int32
+	FollowersCount int32
+	PostsCount     int32
 	ID             string
 }
 
@@ -234,8 +234,8 @@ func (q *Queries) GetAllUsers(ctx context.Context, arg GetAllUsersParams) ([]Use
 		arg.Limit,
 		arg.Name,
 		arg.Username,
-		arg.Followerscount,
-		arg.Postscount,
+		arg.FollowersCount,
+		arg.PostsCount,
 		arg.ID,
 	)
 	if err != nil {

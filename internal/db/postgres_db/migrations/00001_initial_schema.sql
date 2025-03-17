@@ -76,8 +76,7 @@ CREATE TABLE posts(
 
 CREATE INDEX ON posts(user_id);
 -- used for full text search
-CREATE INDEX ON posts USING GIN(to_tsvector('english', title));
-CREATE INDEX ON posts USING GIN(to_tsvector('english', content));
+CREATE INDEX ON posts USING GIN(to_tsvector('english', title || ' ' || content));
 
 -- +goose StatementBegin
 CREATE FUNCTION update_user_posts_count()

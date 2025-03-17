@@ -8,6 +8,7 @@ package postgres_repo
 import (
 	"context"
 	"database/sql"
+	"time"
 )
 
 const checkBookmark = `-- name: CheckBookmark :one
@@ -275,6 +276,225 @@ type DeleteReactionParams struct {
 func (q *Queries) DeleteReaction(ctx context.Context, arg DeleteReactionParams) error {
 	_, err := q.db.ExecContext(ctx, deleteReaction, arg.PostID, arg.UserID)
 	return err
+}
+
+const getAllBookmarks = `-- name: GetAllBookmarks :many
+SELECT posts.id, posts.user_id, posts.title, posts.content, posts.created_at, posts.views_count, posts.comments_count, posts.featured_image_url
+FROM bookmarks
+JOIN posts ON bookmarks.post_id = posts.id
+WHERE
+    -- filters
+    bookmarks.user_id = $1 AND
+    -- cursor
+    bookmarks.created_at <= coalesce(
+        nullif($3::TIMESTAMP, '0001-01-01 00:00:00'::TIMESTAMP),
+        now()
+    )
+ORDER BY bookmarks.created_at DESC
+LIMIT $2
+`
+
+type GetAllBookmarksParams struct {
+	UserID    string
+	Limit     int32
+	CreatedAt time.Time
+}
+
+func (q *Queries) GetAllBookmarks(ctx context.Context, arg GetAllBookmarksParams) ([]Post, error) {
+	rows, err := q.db.QueryContext(ctx, getAllBookmarks, arg.UserID, arg.Limit, arg.CreatedAt)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Post
+	for rows.Next() {
+		var i Post
+		if err := rows.Scan(
+			&i.ID,
+			&i.UserID,
+			&i.Title,
+			&i.Content,
+			&i.CreatedAt,
+			&i.ViewsCount,
+			&i.CommentsCount,
+			&i.FeaturedImageUrl,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getAllPostComments = `-- name: GetAllPostComments :many
+SELECT id, post_id, user_id, content, created_at
+FROM post_comments
+WHERE
+    -- filters
+    post_id = $1 AND
+    -- cursor
+    ($3::VARCHAR = '' OR id <= $3::VARCHAR)
+ORDER BY id DESC
+LIMIT $2
+`
+
+type GetAllPostCommentsParams struct {
+	PostID string
+	Limit  int32
+	ID     string
+}
+
+func (q *Queries) GetAllPostComments(ctx context.Context, arg GetAllPostCommentsParams) ([]PostComment, error) {
+	rows, err := q.db.QueryContext(ctx, getAllPostComments, arg.PostID, arg.Limit, arg.ID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []PostComment
+	for rows.Next() {
+		var i PostComment
+		if err := rows.Scan(
+			&i.ID,
+			&i.PostID,
+			&i.UserID,
+			&i.Content,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getAllPosts = `-- name: GetAllPosts :many
+SELECT id, user_id, title, content, created_at, views_count, comments_count, featured_image_url
+FROM posts
+WHERE
+    -- filters
+    to_tsvector('english', title || ' ' || content) @@ to_tsquery('english', $2::VARCHAR) AND
+    -- cursor
+    ($3::INTEGER = 0 OR views_count <= $3::INTEGER) AND
+    ($4::VARCHAR = '' OR id <= $4::VARCHAR)
+ORDER BY
+    views_count DESC,
+    id DESC
+LIMIT $1
+`
+
+type GetAllPostsParams struct {
+	Limit       int32
+	SearchQuery string
+	ViewsCount  int32
+	ID          string
+}
+
+func (q *Queries) GetAllPosts(ctx context.Context, arg GetAllPostsParams) ([]Post, error) {
+	rows, err := q.db.QueryContext(ctx, getAllPosts,
+		arg.Limit,
+		arg.SearchQuery,
+		arg.ViewsCount,
+		arg.ID,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Post
+	for rows.Next() {
+		var i Post
+		if err := rows.Scan(
+			&i.ID,
+			&i.UserID,
+			&i.Title,
+			&i.Content,
+			&i.CreatedAt,
+			&i.ViewsCount,
+			&i.CommentsCount,
+			&i.FeaturedImageUrl,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getAllUserPosts = `-- name: GetAllUserPosts :many
+SELECT id, user_id, title, content, created_at, views_count, comments_count, featured_image_url
+FROM posts
+WHERE
+    -- filter
+    user_id = $1 AND
+    -- cursor
+    ($3::INTEGER = 0 OR views_count <= $3::INTEGER) AND
+    ($4::VARCHAR = '' OR id <= $4::VARCHAR)
+ORDER BY
+    views_count DESC,
+    id DESC
+LIMIT $2
+`
+
+type GetAllUserPostsParams struct {
+	UserID     string
+	Limit      int32
+	ViewsCount int32
+	ID         string
+}
+
+func (q *Queries) GetAllUserPosts(ctx context.Context, arg GetAllUserPostsParams) ([]Post, error) {
+	rows, err := q.db.QueryContext(ctx, getAllUserPosts,
+		arg.UserID,
+		arg.Limit,
+		arg.ViewsCount,
+		arg.ID,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Post
+	for rows.Next() {
+		var i Post
+		if err := rows.Scan(
+			&i.ID,
+			&i.UserID,
+			&i.Title,
+			&i.Content,
+			&i.CreatedAt,
+			&i.ViewsCount,
+			&i.CommentsCount,
+			&i.FeaturedImageUrl,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const getBookmarks = `-- name: GetBookmarks :many

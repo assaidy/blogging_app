@@ -141,3 +141,57 @@ WHERE bookmarks.user_id = $1
 ORDER BY bookmarks.created_at
 LIMIT $2
 OFFSET $3;
+
+-- name: GetAllUserPosts :many
+SELECT *
+FROM posts
+WHERE
+    -- filter
+    user_id = $1 AND
+    -- cursor
+    (sqlc.arg(views_count)::INTEGER = 0 OR views_count <= sqlc.arg(views_count)::INTEGER) AND
+    (sqlc.arg(ID)::VARCHAR = '' OR id <= sqlc.arg(ID)::VARCHAR)
+ORDER BY
+    views_count DESC,
+    id DESC
+LIMIT $2;
+
+-- name: GetAllPosts :many
+SELECT *
+FROM posts
+WHERE
+    -- filters
+    to_tsvector('english', title || ' ' || content) @@ to_tsquery('english', sqlc.arg(search_query)::VARCHAR) AND
+    -- cursor
+    (sqlc.arg(views_count)::INTEGER = 0 OR views_count <= sqlc.arg(views_count)::INTEGER) AND
+    (sqlc.arg(ID)::VARCHAR = '' OR id <= sqlc.arg(ID)::VARCHAR)
+ORDER BY
+    views_count DESC,
+    id DESC
+LIMIT $1;
+
+-- name: GetAllPostComments :many
+SELECT *
+FROM post_comments
+WHERE
+    -- filters
+    post_id = $1 AND
+    -- cursor
+    (sqlc.arg(ID)::VARCHAR = '' OR id <= sqlc.arg(ID)::VARCHAR)
+ORDER BY id DESC
+LIMIT $2;
+
+-- name: GetAllBookmarks :many
+SELECT posts.*
+FROM bookmarks
+JOIN posts ON bookmarks.post_id = posts.id
+WHERE
+    -- filters
+    bookmarks.user_id = $1 AND
+    -- cursor
+    bookmarks.created_at <= coalesce(
+        nullif(sqlc.arg(created_at)::TIMESTAMP, '0001-01-01 00:00:00'::TIMESTAMP),
+        now()
+    )
+ORDER BY bookmarks.created_at DESC
+LIMIT $2;

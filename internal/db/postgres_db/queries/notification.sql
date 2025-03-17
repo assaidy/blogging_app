@@ -11,7 +11,7 @@ WHERE user_id = $1;
 SELECT COUNT(*) FROM notifications
 WHERE user_id = $1 AND is_read = false;
 
--- name: GetNotifications :many
+-- name: GetAllNotifications :many
 SELECT 
     n.id,
     nk.name as kind,
@@ -22,10 +22,13 @@ SELECT
     n.created_at
 FROM notifications n
 JOIN notification_kinds nk ON nk.id = n.kind_id
-WHERE n.user_id = $1
-ORDER BY n.created_at DESC
-LIMIT $2
-OFFSET $3;
+WHERE
+    -- filter
+    n.user_id = $1 AND
+    -- cursor
+    (sqlc.arg(ID)::VARCHAR = '' OR n.id <= sqlc.arg(ID)::VARCHAR)
+ORDER BY n.id DESC
+LIMIT $2;
 
 -- name: CheckNotificationForUser :one
 SELECT EXISTS(SELECT 1 FROM notifications WHERE id = $1 AND user_id = $2);

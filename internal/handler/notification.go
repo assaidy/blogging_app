@@ -82,3 +82,54 @@ func HandleMarkNotificationAsRead(c *fiber.Ctx) error {
 
 	return c.Status(fiber.StatusOK).SendString("notification marked as read successfully")
 }
+
+func HandleGetAllNotifications(c *fiber.Ctx) error {
+	limit := c.QueryInt("limit")
+	if limit < 10 || limit > 100 {
+		limit = 10
+	}
+
+	var requestCursor NotificationsCursor
+	if err := decodeBase64AndUnmarshalJson(&requestCursor, c.Query("cursor")); err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, "invalid cursor format")
+	}
+
+	notifications, err := queries.GetAllNotifications(context.Background(), postgres_repo.GetAllNotificationsParams{
+		// filter
+		UserID: getUserIDFromContext(c),
+		// cursor
+		ID: requestCursor.ID,
+		// limit
+		Limit: int32(limit) + 1,
+	})
+	if err != nil {
+		return fiber.NewError(fiber.StatusInternalServerError, fmt.Sprintf("error getting notifications: %+v", err))
+	}
+
+	var encodedResponseCursor string
+	hasMore := limit < len(notifications)
+	if hasMore {
+		responseCursor := NotificationsCursor{
+			ID: notifications[limit].ID,
+		}
+		encodedResponseCursor, err = marshalJsonAndEncodeBase64(responseCursor)
+		if err != nil {
+			return fiber.NewError(fiber.StatusInternalServerError, fmt.Sprintf("error encoding cursor: %+v", err))
+		}
+		notifications = notifications[:limit]
+	}
+
+	payload := make([]types.NotificationPayload, 0, len(notifications))
+	for _, notification := range notifications {
+		var notificationPayload types.NotificationPayload
+		fillNotificationPayload(&notificationPayload, &notification)
+		payload = append(payload, notificationPayload)
+	}
+
+	return c.Status(fiber.StatusOK).JSON(CursoredApiResponse{
+		Payload:    payload,
+		Cursor:     encodedResponseCursor,
+		HasMore:    hasMore,
+		TotalCount: len(payload),
+	})
+}

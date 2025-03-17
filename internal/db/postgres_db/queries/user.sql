@@ -52,9 +52,9 @@ WHERE
      -- filter
     (name ILIKE '%' || sqlc.arg(Name)::VARCHAR || '%' OR username ILIKE '%' || sqlc.arg(Username)::VARCHAR || '%') AND
      -- cursor
-    (sqlc.arg(FollowersCount)::INTEGER = 0 OR followers_count <= sqlc.arg(FollowersCount)::INTEGER) AND
-    (sqlc.arg(PostsCount)::INTEGER = 0 OR posts_count <= sqlc.arg(PostsCount)::INTEGER) AND
-    (sqlc.arg(ID)::VARCHAR = '' OR ID <= sqlc.arg(ID)::VARCHAR)
+    (sqlc.arg(followers_count)::INTEGER = 0 OR followers_count <= sqlc.arg(followers_count)::INTEGER) AND
+    (sqlc.arg(posts_count)::INTEGER = 0 OR posts_count <= sqlc.arg(posts_count)::INTEGER) AND
+    (sqlc.arg(ID)::VARCHAR = '' OR id <= sqlc.arg(ID)::VARCHAR)
 ORDER BY
     followers_count DESC,
     posts_count DESC,

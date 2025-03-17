@@ -426,3 +426,233 @@ func HandleDeleteFromBookmarks(c *fiber.Ctx) error {
 
 	return c.Status(fiber.StatusOK).SendString("bookmark deleted successfully")
 }
+
+func HandleGetAllUserPosts(c *fiber.Ctx) error {
+	userID := c.Params("user_id")
+	if !utils.IsValidEncodedULID(userID) {
+		return fiber.NewError(fiber.StatusBadRequest, "invalid ID fromat")
+	}
+
+	if exists, err := queries.CheckUserID(context.Background(), userID); err != nil {
+		return fiber.NewError(fiber.StatusInternalServerError, fmt.Sprintf("error checking user: %+v", err))
+	} else if !exists {
+		return fiber.NewError(fiber.StatusNotFound, "user not found")
+	}
+
+	limit := c.QueryInt("limit")
+	if limit < 10 || limit > 100 {
+		limit = 10
+	}
+
+	var requestCursor PostsCursor
+	if err := decodeBase64AndUnmarshalJson(&requestCursor, c.Query("cursor")); err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, "invalid cursor format")
+	}
+
+	posts, err := queries.GetAllUserPosts(context.Background(), postgres_repo.GetAllUserPostsParams{
+		// filter
+		UserID: userID,
+		// cursor
+		ViewsCount: int32(requestCursor.ViewsCount),
+		ID:         requestCursor.ID,
+		// limit
+		Limit: int32(limit) + 1,
+	})
+	if err != nil {
+		return fiber.NewError(fiber.StatusInternalServerError, fmt.Sprintf("error getting user posts: %+v", err))
+	}
+
+	var encodedResponseCursor string
+	hasMore := limit < len(posts)
+	if hasMore {
+		responseCursor := PostsCursor{
+			ViewsCount: int(posts[limit].ViewsCount),
+			ID:         posts[limit].ID,
+		}
+		encodedResponseCursor, err = marshalJsonAndEncodeBase64(responseCursor)
+		if err != nil {
+			return fiber.NewError(fiber.StatusInternalServerError, fmt.Sprintf("error encoding cursor: %+v", err))
+		}
+		posts = posts[:limit]
+	}
+
+	payload := make([]types.PostPayload, 0, len(posts))
+	for _, post := range posts {
+		var postPayload types.PostPayload
+		fillPostPayload(&postPayload, &post)
+		payload = append(payload, postPayload)
+	}
+
+	return c.Status(fiber.StatusOK).JSON(CursoredApiResponse{
+		Payload:    payload,
+		Cursor:     encodedResponseCursor,
+		HasMore:    hasMore,
+		TotalCount: len(payload),
+	})
+}
+
+func HandleGetAllPosts(c *fiber.Ctx) error {
+	limit := c.QueryInt("limit")
+	if limit < 10 || limit > 100 {
+		limit = 10
+	}
+
+	var requestCursor PostsCursor
+	if err := decodeBase64AndUnmarshalJson(&requestCursor, c.Query("cursor")); err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, "invalid cursor format")
+	}
+
+	posts, err := queries.GetAllPosts(context.Background(), postgres_repo.GetAllPostsParams{
+		// filter
+		SearchQuery: c.Query("search_query"),
+		// cursor
+		ViewsCount: int32(requestCursor.ViewsCount),
+		ID:         requestCursor.ID,
+		// limit
+		Limit: int32(limit) + 1,
+	})
+	if err != nil {
+		return fiber.NewError(fiber.StatusInternalServerError, fmt.Sprintf("error getting posts: %+v", err))
+	}
+
+	var encodedResponseCursor string
+	hasMore := limit < len(posts)
+	if hasMore {
+		responseCursor := PostsCursor{
+			ViewsCount: int(posts[limit].ViewsCount),
+			ID:         posts[limit].ID,
+		}
+		encodedResponseCursor, err = marshalJsonAndEncodeBase64(responseCursor)
+		if err != nil {
+			return fiber.NewError(fiber.StatusInternalServerError, fmt.Sprintf("error encoding cursor: %+v", err))
+		}
+		posts = posts[:limit]
+	}
+
+	payload := make([]types.PostPayload, 0, len(posts))
+	for _, post := range posts {
+		var postPayload types.PostPayload
+		fillPostPayload(&postPayload, &post)
+		payload = append(payload, postPayload)
+	}
+
+	return c.Status(fiber.StatusOK).JSON(CursoredApiResponse{
+		Payload:    payload,
+		Cursor:     encodedResponseCursor,
+		HasMore:    hasMore,
+		TotalCount: len(payload),
+	})
+}
+
+func HandleGetAllPostComments(c *fiber.Ctx) error {
+	postID := c.Params("post_id")
+	if !utils.IsValidEncodedULID(postID) {
+		return fiber.NewError(fiber.StatusBadRequest, "invalid ID fromat")
+	}
+
+	if exists, err := queries.CheckPost(context.Background(), postID); err != nil {
+		return fiber.NewError(fiber.StatusInternalServerError, fmt.Sprintf("error checking post: %+v", err))
+	} else if !exists {
+		return fiber.NewError(fiber.StatusNotFound, "post not found")
+	}
+
+	limit := c.QueryInt("limit")
+	if limit < 10 || limit > 100 {
+		limit = 10
+	}
+
+	var requestCursor CommentsCursor
+	if err := decodeBase64AndUnmarshalJson(&requestCursor, c.Query("cursor")); err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, "invalid cursor format")
+	}
+
+	comments, err := queries.GetAllPostComments(context.Background(), postgres_repo.GetAllPostCommentsParams{
+		// filter
+		PostID: postID,
+		// cursor
+		ID: requestCursor.ID,
+		// limit
+		Limit: int32(limit) + 1,
+	})
+	if err != nil {
+		return fiber.NewError(fiber.StatusInternalServerError, fmt.Sprintf("error getting post comments: %+v", err))
+	}
+
+	var encodedResponseCursor string
+	hasMore := limit < len(comments)
+	if hasMore {
+		responseCursor := CommentsCursor{
+			ID: comments[limit].ID,
+		}
+		encodedResponseCursor, err = marshalJsonAndEncodeBase64(responseCursor)
+		if err != nil {
+			return fiber.NewError(fiber.StatusInternalServerError, fmt.Sprintf("error encoding cursor: %+v", err))
+		}
+		comments = comments[:limit]
+	}
+
+	payload := make([]types.CommentPayload, 0, len(comments))
+	for _, comment := range comments {
+		var commentPayload types.CommentPayload
+		fillCommentPayload(&commentPayload, &comment)
+		payload = append(payload, commentPayload)
+	}
+
+	return c.Status(fiber.StatusOK).JSON(CursoredApiResponse{
+		Payload:    payload,
+		Cursor:     encodedResponseCursor,
+		HasMore:    hasMore,
+		TotalCount: len(payload),
+	})
+}
+
+func HandleGetAllBookmarks(c *fiber.Ctx) error {
+	limit := c.QueryInt("limit")
+	if limit < 10 || limit > 100 {
+		limit = 10
+	}
+
+	var requestCursor BookmarksCursor
+	if err := decodeBase64AndUnmarshalJson(&requestCursor, c.Query("cursor")); err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, "invalid cursor format")
+	}
+
+	bookmarks, err := queries.GetAllBookmarks(context.Background(), postgres_repo.GetAllBookmarksParams{
+		// filter
+		UserID: getUserIDFromContext(c),
+		// cursor
+		CreatedAt: requestCursor.CreatedAt,
+		// limit
+		Limit: int32(limit) + 1,
+	})
+	if err != nil {
+		return fiber.NewError(fiber.StatusInternalServerError, fmt.Sprintf("error getting bookmarks: %+v", err))
+	}
+
+	var encodedResponseCursor string
+	hasMore := limit < len(bookmarks)
+	if hasMore {
+		responseCursor := BookmarksCursor{
+			CreatedAt: bookmarks[limit].CreatedAt,
+		}
+		encodedResponseCursor, err = marshalJsonAndEncodeBase64(responseCursor)
+		if err != nil {
+			return fiber.NewError(fiber.StatusInternalServerError, fmt.Sprintf("error encoding cursor: %+v", err))
+		}
+		bookmarks = bookmarks[:limit]
+	}
+
+	payload := make([]types.PostPayload, 0, len(bookmarks))
+	for _, bookmark := range bookmarks {
+		var postPayload types.PostPayload
+		fillPostPayload(&postPayload, &bookmark)
+		payload = append(payload, postPayload)
+	}
+
+	return c.Status(fiber.StatusOK).JSON(CursoredApiResponse{
+		Payload:    payload,
+		Cursor:     encodedResponseCursor,
+		HasMore:    hasMore,
+		TotalCount: len(payload),
+	})
+}

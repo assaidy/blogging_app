@@ -63,7 +63,7 @@ func (q *Queries) CreateNotification(ctx context.Context, arg CreateNotification
 	return i, err
 }
 
-const getNotifications = `-- name: GetNotifications :many
+const getAllNotifications = `-- name: GetAllNotifications :many
 SELECT 
     n.id,
     nk.name as kind,
@@ -74,19 +74,22 @@ SELECT
     n.created_at
 FROM notifications n
 JOIN notification_kinds nk ON nk.id = n.kind_id
-WHERE n.user_id = $1
-ORDER BY n.created_at DESC
+WHERE
+    -- filter
+    n.user_id = $1 AND
+    -- cursor
+    ($3::VARCHAR = '' OR n.id <= $3::VARCHAR)
+ORDER BY n.id DESC
 LIMIT $2
-OFFSET $3
 `
 
-type GetNotificationsParams struct {
+type GetAllNotificationsParams struct {
 	UserID string
 	Limit  int32
-	Offset int32
+	ID     string
 }
 
-type GetNotificationsRow struct {
+type GetAllNotificationsRow struct {
 	ID        string
 	Kind      string
 	UserID    string
@@ -96,15 +99,15 @@ type GetNotificationsRow struct {
 	CreatedAt time.Time
 }
 
-func (q *Queries) GetNotifications(ctx context.Context, arg GetNotificationsParams) ([]GetNotificationsRow, error) {
-	rows, err := q.db.QueryContext(ctx, getNotifications, arg.UserID, arg.Limit, arg.Offset)
+func (q *Queries) GetAllNotifications(ctx context.Context, arg GetAllNotificationsParams) ([]GetAllNotificationsRow, error) {
+	rows, err := q.db.QueryContext(ctx, getAllNotifications, arg.UserID, arg.Limit, arg.ID)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []GetNotificationsRow
+	var items []GetAllNotificationsRow
 	for rows.Next() {
-		var i GetNotificationsRow
+		var i GetAllNotificationsRow
 		if err := rows.Scan(
 			&i.ID,
 			&i.Kind,

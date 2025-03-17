@@ -4,6 +4,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"time"
 
 	"github.com/assaidy/blogging_app/internal/db/postgres_db"
 	"github.com/assaidy/blogging_app/internal/middleware"
@@ -15,20 +16,38 @@ import (
 
 var queries = postgres_repo.New(postgres_db.DB)
 
-type cursoredApiResponse struct {
+type CursoredApiResponse struct {
 	Payload    any    `json:"payload"`
 	Cursor     string `json:"cursor"`
 	HasMore    bool   `json:"hasNext"`
 	TotalCount int    `json:"totalCount"`
 }
 
-type usersCursor struct {
+type UsersCursor struct {
 	FollowersCount int    `json:"followersCount"`
 	PostsCount     int    `json:"postsCount"`
 	ID             string `json:"id" validate:"customULID"`
 }
 
-type followersCursor struct {
+type FollowersCursor struct {
+	ID string `json:"id" validate:"customULID"`
+}
+
+// TODO: might also wanna use reactions count
+type PostsCursor struct {
+	ViewsCount int    `json:"viewsCount"`
+	ID         string `json:"id" validate:"customULID"`
+}
+
+type CommentsCursor struct {
+	ID string `json:"id" validate:"customULID"`
+}
+
+type BookmarksCursor struct {
+	CreatedAt time.Time `json:"createdAt"`
+}
+
+type NotificationsCursor struct {
 	ID string `json:"id" validate:"customULID"`
 }
 
@@ -121,4 +140,14 @@ func fillCommentPayload(commentPayload *types.CommentPayload, repoComment *postg
 	commentPayload.UserID = repoComment.UserID
 	commentPayload.Content = repoComment.Content
 	commentPayload.CreatedAt = repoComment.CreatedAt
+}
+
+func fillNotificationPayload(notificationPayload *types.NotificationPayload, repoNotification *postgres_repo.GetAllNotificationsRow) {
+	notificationPayload.ID = repoNotification.ID
+	notificationPayload.Kind = repoNotification.Kind
+	notificationPayload.UserID = repoNotification.UserID
+	notificationPayload.SenderID = repoNotification.SenderID
+	notificationPayload.PostID = repoNotification.PostID
+	notificationPayload.IsRead = repoNotification.IsRead
+	notificationPayload.CreatedAt = repoNotification.CreatedAt
 }

@@ -28,7 +28,7 @@ func mountRoutes(app *fiber.App) {
 		v1.Get("/users/username/:username", handler.HandleGetUserByUsername)
 		v1.Put("/users", middleware.Auth, handler.HandleUpdateUser)
 		v1.Delete("/users", middleware.Auth, handler.HandleDeleteUser)
-		v1.Get("/users", middleware.Auth, handler.HandleGetAllUsers)
+		v1.Get("/users", middleware.Auth, handler.HandleGetAllUsers) // with filtering (used for searching)
 
 		v1.Post("/follow/:followed_id", middleware.Auth, handler.HandleFollow)
 		v1.Post("/unfollow/:followed_id", middleware.Auth, handler.HandleUnfollow)
@@ -38,25 +38,24 @@ func mountRoutes(app *fiber.App) {
 		v1.Get("/posts/:post_id", handler.HandleGetPost)
 		v1.Put("/posts/:post_id", middleware.Auth, handler.HandleUpdatePost)
 		v1.Delete("/posts/:post_id", middleware.Auth, handler.HandleDeletePost)
-		// v1.Get("users/:user_id/posts", middleware.Auth, handler.HandleGetAllUserPosts)
-		// v1.Get("posts", middleware.Auth, handler.HandleGetAllPosts)
+		v1.Get("users/:user_id/posts", middleware.Auth, handler.HandleGetAllUserPosts)
+		v1.Get("posts", middleware.Auth, handler.HandleGetAllPosts) // with filtering (used for searching)
 
 		v1.Post("/posts/:post_id/views", middleware.Auth, handler.HandleViewPost)
-		// v1.Get("/posts/:post_id/views", mwAuth, handler.HandleGetAllPostViews)
 
 		v1.Post("/posts/:post_id/comments", middleware.Auth, handler.HandleCreateComment)
 		v1.Put("/posts/comments/:comment_id", middleware.Auth, handler.HandleUpdateComment)
 		v1.Delete("/posts/comments/:comment_id", middleware.Auth, handler.HandleDeleteComment)
-		// v1.Get("/posts/post_id/comments", mwAuth, handler.HandleGetAllPostComments)
+		v1.Get("/posts/post_id/comments", middleware.Auth, handler.HandleGetAllPostComments)
 
 		v1.Post("/posts/:post_id/reaction", middleware.Auth, handler.HandleReact)
 		v1.Delete("/posts/:post_id/reaction", middleware.Auth, handler.HandleDeleteReaction)
 
 		v1.Post("/bookmarks/post/:post_id", middleware.Auth, handler.HandleAddToBookmarks)
 		v1.Delete("/bookmarks/post/:post_id", middleware.Auth, handler.HandleDeleteFromBookmarks)
-		// v1.Get("/bookmarks", mwAuth, handler.HandleGetAllBookmarks)
+		v1.Get("/bookmarks", middleware.Auth, handler.HandleGetAllBookmarks)
 
-		// v1.Get("/notifications", mwAuth, handler.HandleGetAllNotifications)
+		v1.Get("/notifications", middleware.Auth, handler.HandleGetAllNotifications)
 		v1.Get("/notifications/unread_count", middleware.Auth, handler.HandleGetUnreadNotificationsCount)
 		v1.Post("/notifications/:notification_id/read", middleware.Auth, handler.HandleMarkNotificationAsRead)
 	}

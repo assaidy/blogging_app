@@ -198,21 +198,21 @@ func HandleGetAllUsers(c *fiber.Ctx) error {
 		limit = 10
 	}
 
-	var requestCursor usersCursor
+	var requestCursor UsersCursor
 	if err := decodeBase64AndUnmarshalJson(&requestCursor, c.Query("cursor")); err != nil {
 		return fiber.NewError(fiber.StatusBadRequest, "invalid cursor format")
 	}
 
 	users, err := queries.GetAllUsers(context.Background(), postgres_repo.GetAllUsersParams{
-		// == cursor
-		Followerscount: int32(requestCursor.FollowersCount),
-		Postscount:     int32(requestCursor.PostsCount),
-		ID:             requestCursor.ID,
-		// == filter
+		// filter
 		Name:     c.Query("name"),
 		Username: c.Query("username"),
-		// == limit
-		Limit: int32(limit + 1),
+		// cursor
+		FollowersCount: int32(requestCursor.FollowersCount),
+		PostsCount:     int32(requestCursor.PostsCount),
+		ID:             requestCursor.ID,
+		// limit
+		Limit: int32(limit) + 1,
 	})
 	if err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, fmt.Sprintf("error getting users: %+v", err))
@@ -221,7 +221,7 @@ func HandleGetAllUsers(c *fiber.Ctx) error {
 	var encodedResponseCursor string
 	hasMore := limit < len(users)
 	if hasMore {
-		responseCursor := usersCursor{
+		responseCursor := UsersCursor{
 			FollowersCount: int(users[limit].FollowersCount),
 			PostsCount:     int(users[limit].PostsCount),
 			ID:             users[limit].ID,
@@ -240,7 +240,7 @@ func HandleGetAllUsers(c *fiber.Ctx) error {
 		payload = append(payload, userPayload)
 	}
 
-	return c.Status(fiber.StatusOK).JSON(cursoredApiResponse{
+	return c.Status(fiber.StatusOK).JSON(CursoredApiResponse{
 		Payload:    payload,
 		Cursor:     encodedResponseCursor,
 		HasMore:    hasMore,
@@ -254,18 +254,18 @@ func HandleGetAllFollowers(c *fiber.Ctx) error {
 		limit = 10
 	}
 
-	var requestCursor followersCursor
+	var requestCursor FollowersCursor
 	if err := decodeBase64AndUnmarshalJson(&requestCursor, c.Query("cursor")); err != nil {
 		return fiber.NewError(fiber.StatusBadRequest, "invalid cursor format")
 	}
 
 	followers, err := queries.GetAllFollowers(context.Background(), postgres_repo.GetAllFollowersParams{
-		// == filter
+		// filter
 		FollowedID: getUserIDFromContext(c),
-		// == cursor
+		// cursor
 		ID: requestCursor.ID,
-		// == limit
-		Limit: int32(limit + 1),
+		// limit
+		Limit: int32(limit) + 1,
 	})
 	if err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, fmt.Sprintf("error getting followers: %+v", err))
@@ -274,7 +274,7 @@ func HandleGetAllFollowers(c *fiber.Ctx) error {
 	var encodedResponseCursor string
 	hasMore := limit < len(followers)
 	if hasMore {
-		responseCursor := followersCursor{
+		responseCursor := FollowersCursor{
 			ID: followers[limit].ID,
 		}
 		encodedResponseCursor, err = marshalJsonAndEncodeBase64(responseCursor)
@@ -291,7 +291,7 @@ func HandleGetAllFollowers(c *fiber.Ctx) error {
 		payload = append(payload, userPayload)
 	}
 
-	return c.Status(fiber.StatusOK).JSON(cursoredApiResponse{
+	return c.Status(fiber.StatusOK).JSON(CursoredApiResponse{
 		Payload:    payload,
 		Cursor:     encodedResponseCursor,
 		HasMore:    hasMore,
