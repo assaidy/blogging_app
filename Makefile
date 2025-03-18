@@ -11,6 +11,7 @@ run: build
 	@./bin/app
 
 build:
+	@go mod tidy
 	@go build -o ./bin/app ./cmd/api/main.go
 
 clean:
