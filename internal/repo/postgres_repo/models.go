@@ -7,26 +7,28 @@ package postgres_repo
 import (
 	"database/sql"
 	"time"
+
+	"github.com/google/uuid"
 )
 
 type Bookmark struct {
-	UserID    string
-	PostID    string
+	UserID    uuid.UUID
+	PostID    uuid.UUID
 	CreatedAt time.Time
 }
 
 type Follow struct {
-	FollowerID string
-	FollowedID string
+	FollowerID uuid.UUID
+	FollowedID uuid.UUID
 	CreatedAt  time.Time
 }
 
 type Notification struct {
-	ID        string
+	ID        uuid.UUID
 	KindID    int32
-	UserID    string
-	SenderID  interface{}
-	PostID    interface{}
+	UserID    uuid.UUID
+	SenderID  uuid.NullUUID
+	PostID    uuid.NullUUID
 	IsRead    bool
 	CreatedAt time.Time
 }
@@ -37,8 +39,8 @@ type NotificationKind struct {
 }
 
 type Post struct {
-	ID               string
-	UserID           string
+	ID               uuid.UUID
+	UserID           uuid.UUID
 	Title            string
 	Content          string
 	CreatedAt        time.Time
@@ -48,23 +50,23 @@ type Post struct {
 }
 
 type PostComment struct {
-	ID        string
-	PostID    string
-	UserID    string
+	ID        uuid.UUID
+	PostID    uuid.UUID
+	UserID    uuid.UUID
 	Content   string
 	CreatedAt time.Time
 }
 
 type PostReaction struct {
-	PostID    string
-	UserID    string
+	PostID    uuid.UUID
+	UserID    uuid.UUID
 	KindID    int32
 	CreatedAt time.Time
 }
 
 type PostView struct {
-	PostID    string
-	UserID    string
+	PostID    uuid.UUID
+	UserID    uuid.UUID
 	CreatedAt time.Time
 }
 
@@ -75,13 +77,13 @@ type ReactionKind struct {
 
 type RefreshToken struct {
 	Token     string
-	UserID    string
+	UserID    uuid.UUID
 	CreatedAt time.Time
 	ExpiresAt time.Time
 }
 
 type User struct {
-	ID              string
+	ID              uuid.UUID
 	Name            string
 	Username        string
 	HashedPassword  string

@@ -8,6 +8,8 @@ package postgres_repo
 import (
 	"context"
 	"database/sql"
+
+	"github.com/google/uuid"
 )
 
 const checkFollow = `-- name: CheckFollow :one
@@ -15,8 +17,8 @@ SELECT EXISTS(SELECT 1 FROM follows WHERE follower_id = $1 AND followed_id = $2)
 `
 
 type CheckFollowParams struct {
-	FollowerID string
-	FollowedID string
+	FollowerID uuid.UUID
+	FollowedID uuid.UUID
 }
 
 func (q *Queries) CheckFollow(ctx context.Context, arg CheckFollowParams) (bool, error) {
@@ -30,7 +32,7 @@ const checkUserID = `-- name: CheckUserID :one
 SELECT EXISTS(SELECT 1 FROM users WHERE id = $1)
 `
 
-func (q *Queries) CheckUserID(ctx context.Context, id string) (bool, error) {
+func (q *Queries) CheckUserID(ctx context.Context, id uuid.UUID) (bool, error) {
 	row := q.db.QueryRowContext(ctx, checkUserID, id)
 	var exists bool
 	err := row.Scan(&exists)
@@ -55,8 +57,8 @@ ON CONFLICT(follower_id, followed_id) DO NOTHING
 `
 
 type CreateFollowParams struct {
-	FollowerID string
-	FollowedID string
+	FollowerID uuid.UUID
+	FollowedID uuid.UUID
 }
 
 func (q *Queries) CreateFollow(ctx context.Context, arg CreateFollowParams) error {
@@ -65,13 +67,12 @@ func (q *Queries) CreateFollow(ctx context.Context, arg CreateFollowParams) erro
 }
 
 const createUser = `-- name: CreateUser :one
-INSERT INTO users(id, name, username, hashed_password, profile_image_url)
-VALUES($1, $2, $3, $4, $5)
+INSERT INTO users(name, username, hashed_password, profile_image_url)
+VALUES($1, $2, $3, $4)
 RETURNING id, name, username, hashed_password, joined_at, posts_count, following_count, followers_count, profile_image_url
 `
 
 type CreateUserParams struct {
-	ID              string
 	Name            string
 	Username        string
 	HashedPassword  string
@@ -80,7 +81,6 @@ type CreateUserParams struct {
 
 func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, error) {
 	row := q.db.QueryRowContext(ctx, createUser,
-		arg.ID,
 		arg.Name,
 		arg.Username,
 		arg.HashedPassword,
@@ -106,8 +106,8 @@ DELETE FROM follows WHERE follower_id = $1 AND followed_id = $2
 `
 
 type DeleteFollowParams struct {
-	FollowerID string
-	FollowedID string
+	FollowerID uuid.UUID
+	FollowedID uuid.UUID
 }
 
 func (q *Queries) DeleteFollow(ctx context.Context, arg DeleteFollowParams) error {
@@ -119,7 +119,7 @@ const deleteUser = `-- name: DeleteUser :exec
 DELETE FROM users WHERE id = $1
 `
 
-func (q *Queries) DeleteUser(ctx context.Context, id string) error {
+func (q *Queries) DeleteUser(ctx context.Context, id uuid.UUID) error {
 	_, err := q.db.ExecContext(ctx, deleteUser, id)
 	return err
 }
@@ -132,15 +132,15 @@ WHERE
     -- filter
     followed_id = $1 AND
     -- cursor
-    ($3::VARCHAR = '' OR users.id <= $3::VARCHAR)
+    (is_zero_uuid($3::UUID) OR id <= $3::UUID)
 ORDER BY users.id DESC
 LIMIT $2
 `
 
 type GetAllFollowersParams struct {
-	FollowedID string
+	FollowedID uuid.UUID
 	Limit      int32
-	ID         string
+	ID         uuid.UUID
 }
 
 func (q *Queries) GetAllFollowers(ctx context.Context, arg GetAllFollowersParams) ([]User, error) {
@@ -180,15 +180,15 @@ const getAllFollowersIDs = `-- name: GetAllFollowersIDs :many
 SELECT follower_id FROM follows WHERE followed_id = $1
 `
 
-func (q *Queries) GetAllFollowersIDs(ctx context.Context, followedID string) ([]string, error) {
+func (q *Queries) GetAllFollowersIDs(ctx context.Context, followedID uuid.UUID) ([]uuid.UUID, error) {
 	rows, err := q.db.QueryContext(ctx, getAllFollowersIDs, followedID)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []string
+	var items []uuid.UUID
 	for rows.Next() {
-		var follower_id string
+		var follower_id uuid.UUID
 		if err := rows.Scan(&follower_id); err != nil {
 			return nil, err
 		}
@@ -212,7 +212,7 @@ WHERE
      -- cursor
     ($4::INTEGER = 0 OR followers_count <= $4::INTEGER) AND
     ($5::INTEGER = 0 OR posts_count <= $5::INTEGER) AND
-    ($6::VARCHAR = '' OR id <= $6::VARCHAR)
+    (is_zero_uuid($6::UUID) OR id <= $6::UUID)
 ORDER BY
     followers_count DESC,
     posts_count DESC,
@@ -226,7 +226,7 @@ type GetAllUsersParams struct {
 	Username       string
 	FollowersCount int32
 	PostsCount     int32
-	ID             string
+	ID             uuid.UUID
 }
 
 func (q *Queries) GetAllUsers(ctx context.Context, arg GetAllUsersParams) ([]User, error) {
@@ -273,7 +273,7 @@ const getFollowersCount = `-- name: GetFollowersCount :one
 SELECT COUNT(*) FROM follows WHERE followed_id = $1
 `
 
-func (q *Queries) GetFollowersCount(ctx context.Context, followedID string) (int64, error) {
+func (q *Queries) GetFollowersCount(ctx context.Context, followedID uuid.UUID) (int64, error) {
 	row := q.db.QueryRowContext(ctx, getFollowersCount, followedID)
 	var count int64
 	err := row.Scan(&count)
@@ -284,7 +284,7 @@ const getUserByID = `-- name: GetUserByID :one
 SELECT id, name, username, hashed_password, joined_at, posts_count, following_count, followers_count, profile_image_url FROM users WHERE id = $1
 `
 
-func (q *Queries) GetUserByID(ctx context.Context, id string) (User, error) {
+func (q *Queries) GetUserByID(ctx context.Context, id uuid.UUID) (User, error) {
 	row := q.db.QueryRowContext(ctx, getUserByID, id)
 	var i User
 	err := row.Scan(
@@ -338,7 +338,7 @@ type UpdateUserParams struct {
 	Username        string
 	HashedPassword  string
 	ProfileImageUrl sql.NullString
-	ID              string
+	ID              uuid.UUID
 }
 
 func (q *Queries) UpdateUser(ctx context.Context, arg UpdateUserParams) (User, error) {

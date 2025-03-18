@@ -7,9 +7,8 @@ import (
 	"sync"
 
 	"github.com/assaidy/blogging_app/internal/repo/postgres_repo"
-	"github.com/assaidy/blogging_app/internal/types"
-	"github.com/assaidy/blogging_app/internal/utils"
 	"github.com/gofiber/fiber/v2"
+	"github.com/google/uuid"
 )
 
 var (
@@ -28,7 +27,6 @@ func StartNotificationWorkers() {
 			defer wg.Done()
 			for notification := range notificationChan {
 				if _, err := queries.CreateNotification(context.Background(), postgres_repo.CreateNotificationParams{
-					ID:       notification.ID,
 					KindID:   notification.KindID,
 					UserID:   notification.UserID,
 					SenderID: notification.SenderID,
@@ -55,14 +53,14 @@ func HandleGetUnreadNotificationsCount(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusInternalServerError, fmt.Sprintf("error getting unread notifications count: %+v", err))
 	}
 
-	return c.Status(fiber.StatusOK).JSON(types.ApiResponse{
+	return c.Status(fiber.StatusOK).JSON(ApiResponse{
 		Payload: unreadNotificationsCount,
 	})
 }
 
 func HandleMarkNotificationAsRead(c *fiber.Ctx) error {
-	notificationID := c.Params("notification_id")
-	if !utils.IsValidEncodedULID(notificationID) {
+	notificationID, err := uuid.Parse(c.Params("notification_id"))
+	if err != nil {
 		return fiber.NewError(fiber.StatusBadRequest, "invalid ID fromat")
 	}
 	userID := getUserIDFromContext(c)
@@ -119,9 +117,9 @@ func HandleGetAllNotifications(c *fiber.Ctx) error {
 		notifications = notifications[:limit]
 	}
 
-	payload := make([]types.NotificationPayload, 0, len(notifications))
+	payload := make([]NotificationPayload, 0, len(notifications))
 	for _, notification := range notifications {
-		var notificationPayload types.NotificationPayload
+		var notificationPayload NotificationPayload
 		fillNotificationPayload(&notificationPayload, &notification)
 		payload = append(payload, notificationPayload)
 	}

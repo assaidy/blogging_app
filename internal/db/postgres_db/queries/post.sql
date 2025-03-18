@@ -1,6 +1,6 @@
 -- name: CreatePost :one
-INSERT INTO posts(id, user_id, title, content, featured_image_url)
-VALUES($1, $2, $3, $4, $5)
+INSERT INTO posts(user_id, title, content, featured_image_url)
+VALUES($1, $2, $3, $4)
 RETURNING *;
 
 -- name: GetPost :one
@@ -71,8 +71,8 @@ VALUES($1, $2)
 ON CONFLICT(post_id, user_id) DO NOTHING;
 
 -- name: CreateComment :one
-INSERT INTO post_comments(id, post_id, user_id, content)
-VALUES($1, $2, $3, $4)
+INSERT INTO post_comments(post_id, user_id, content)
+VALUES($1, $2, $3)
 RETURNING *;
 
 -- name: CheckComment :one
@@ -149,8 +149,7 @@ WHERE
     -- filter
     user_id = $1 AND
     -- cursor
-    (sqlc.arg(views_count)::INTEGER = 0 OR views_count <= sqlc.arg(views_count)::INTEGER) AND
-    (sqlc.arg(ID)::VARCHAR = '' OR id <= sqlc.arg(ID)::VARCHAR)
+    (is_zero_uuid(sqlc.arg(ID)::UUID) OR id <= sqlc.arg(ID)::UUID)
 ORDER BY
     views_count DESC,
     id DESC
@@ -164,7 +163,7 @@ WHERE
     to_tsvector('english', title || ' ' || content) @@ to_tsquery('english', sqlc.arg(search_query)::VARCHAR) AND
     -- cursor
     (sqlc.arg(views_count)::INTEGER = 0 OR views_count <= sqlc.arg(views_count)::INTEGER) AND
-    (sqlc.arg(ID)::VARCHAR = '' OR id <= sqlc.arg(ID)::VARCHAR)
+    (is_zero_uuid(sqlc.arg(ID)::UUID) OR id <= sqlc.arg(ID)::UUID)
 ORDER BY
     views_count DESC,
     id DESC
@@ -177,7 +176,7 @@ WHERE
     -- filters
     post_id = $1 AND
     -- cursor
-    (sqlc.arg(ID)::VARCHAR = '' OR id <= sqlc.arg(ID)::VARCHAR)
+    (is_zero_uuid(sqlc.arg(ID)::UUID) OR id <= sqlc.arg(ID)::UUID)
 ORDER BY id DESC
 LIMIT $2;
 

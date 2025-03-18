@@ -8,5 +8,7 @@ sql:
         package: "postgres_repo"
         out: "./internal/repo/postgres_repo"
         overrides:
-          - db_type: "ulid"
-            go_type: "string"
+          - db_type: "uuid"
+            go_type:
+              import: "github.com/google/uuid"
+              type: "UUID"

@@ -1,6 +1,6 @@
 -- name: CreateNotification :one
-INSERT INTO notifications(id, kind_id, user_id, sender_id, post_id, is_read)
-VALUES($1, $2, $3, $4, $5, $6)
+INSERT INTO notifications(kind_id, user_id, sender_id, post_id, is_read)
+VALUES($1, $2, $3, $4, $5)
 RETURNING *;
 
 -- name: GetNotificationsCount :one
@@ -26,7 +26,7 @@ WHERE
     -- filter
     n.user_id = $1 AND
     -- cursor
-    (sqlc.arg(ID)::VARCHAR = '' OR n.id <= sqlc.arg(ID)::VARCHAR)
+    (is_zero_uuid(sqlc.arg(ID)::UUID) OR id <= sqlc.arg(ID)::UUID)
 ORDER BY n.id DESC
 LIMIT $2;
 

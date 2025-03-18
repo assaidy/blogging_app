@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/google/uuid"
 	"github.com/oklog/ulid/v2"
 )
 
@@ -34,11 +35,11 @@ func GenerateRefreshToken() (RefreshToken, error) {
 }
 
 type jwtClaims struct {
-	UserID string `json:"userID"`
+	UserID uuid.UUID `json:"userID"`
 	jwt.RegisteredClaims
 }
 
-func GenerateJWTAccessToken(userID string) (string, error) {
+func GenerateJWTAccessToken(userID uuid.UUID) (string, error) {
 	minutes, err := strconv.Atoi(os.Getenv("ACCESS_TOKEN_EXPIRATION_MINUTES"))
 	if err != nil {
 		return "", fmt.Errorf("non-numeric env value for ACCESS_TOKEN_EXPIRATION_MINUTES")

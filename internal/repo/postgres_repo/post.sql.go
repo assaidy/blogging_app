@@ -9,6 +9,8 @@ import (
 	"context"
 	"database/sql"
 	"time"
+
+	"github.com/google/uuid"
 )
 
 const checkBookmark = `-- name: CheckBookmark :one
@@ -16,8 +18,8 @@ SELECT EXISTS(SELECT 1 FROM bookmarks WHERE user_id = $1 AND post_id = $2)
 `
 
 type CheckBookmarkParams struct {
-	UserID string
-	PostID string
+	UserID uuid.UUID
+	PostID uuid.UUID
 }
 
 func (q *Queries) CheckBookmark(ctx context.Context, arg CheckBookmarkParams) (bool, error) {
@@ -31,7 +33,7 @@ const checkComment = `-- name: CheckComment :one
 SELECT EXISTS(select 1 FROM post_comments WHERE id = $1)
 `
 
-func (q *Queries) CheckComment(ctx context.Context, id string) (bool, error) {
+func (q *Queries) CheckComment(ctx context.Context, id uuid.UUID) (bool, error) {
 	row := q.db.QueryRowContext(ctx, checkComment, id)
 	var exists bool
 	err := row.Scan(&exists)
@@ -42,7 +44,7 @@ const checkPost = `-- name: CheckPost :one
 SELECT EXISTS(select 1 FROM posts WHERE id = $1)
 `
 
-func (q *Queries) CheckPost(ctx context.Context, id string) (bool, error) {
+func (q *Queries) CheckPost(ctx context.Context, id uuid.UUID) (bool, error) {
 	row := q.db.QueryRowContext(ctx, checkPost, id)
 	var exists bool
 	err := row.Scan(&exists)
@@ -54,8 +56,8 @@ SELECT EXISTS(SELECT 1 FROM post_reactions WHERE post_id = $1 AND user_id = $2)
 `
 
 type CheckReactionParams struct {
-	PostID string
-	UserID string
+	PostID uuid.UUID
+	UserID uuid.UUID
 }
 
 func (q *Queries) CheckReaction(ctx context.Context, arg CheckReactionParams) (bool, error) {
@@ -70,8 +72,8 @@ SELECT EXISTS(select 1 FROM post_comments WHERE id = $1 AND user_id = $2)
 `
 
 type CheckUserOwnsCommentParams struct {
-	ID     string
-	UserID string
+	ID     uuid.UUID
+	UserID uuid.UUID
 }
 
 func (q *Queries) CheckUserOwnsComment(ctx context.Context, arg CheckUserOwnsCommentParams) (bool, error) {
@@ -86,8 +88,8 @@ SELECT EXISTS(select 1 FROM posts WHERE id = $1 AND user_id = $2)
 `
 
 type CheckUserOwnsPostParams struct {
-	ID     string
-	UserID string
+	ID     uuid.UUID
+	UserID uuid.UUID
 }
 
 func (q *Queries) CheckUserOwnsPost(ctx context.Context, arg CheckUserOwnsPostParams) (bool, error) {
@@ -104,8 +106,8 @@ ON CONFLICT(user_id, post_id) DO NOTHING
 `
 
 type CreateBookmarkParams struct {
-	UserID string
-	PostID string
+	UserID uuid.UUID
+	PostID uuid.UUID
 }
 
 func (q *Queries) CreateBookmark(ctx context.Context, arg CreateBookmarkParams) error {
@@ -114,25 +116,19 @@ func (q *Queries) CreateBookmark(ctx context.Context, arg CreateBookmarkParams) 
 }
 
 const createComment = `-- name: CreateComment :one
-INSERT INTO post_comments(id, post_id, user_id, content)
-VALUES($1, $2, $3, $4)
+INSERT INTO post_comments(post_id, user_id, content)
+VALUES($1, $2, $3)
 RETURNING id, post_id, user_id, content, created_at
 `
 
 type CreateCommentParams struct {
-	ID      string
-	PostID  string
-	UserID  string
+	PostID  uuid.UUID
+	UserID  uuid.UUID
 	Content string
 }
 
 func (q *Queries) CreateComment(ctx context.Context, arg CreateCommentParams) (PostComment, error) {
-	row := q.db.QueryRowContext(ctx, createComment,
-		arg.ID,
-		arg.PostID,
-		arg.UserID,
-		arg.Content,
-	)
+	row := q.db.QueryRowContext(ctx, createComment, arg.PostID, arg.UserID, arg.Content)
 	var i PostComment
 	err := row.Scan(
 		&i.ID,
@@ -152,8 +148,8 @@ SET kind = EXCLUDED.kind, created_at = NOW()
 `
 
 type CreateDislikeParams struct {
-	PostID string
-	UserID string
+	PostID uuid.UUID
+	UserID uuid.UUID
 }
 
 func (q *Queries) CreateDislike(ctx context.Context, arg CreateDislikeParams) error {
@@ -169,8 +165,8 @@ SET kind = EXCLUDED.kind, created_at = NOW()
 `
 
 type CreateLikeParams struct {
-	PostID string
-	UserID string
+	PostID uuid.UUID
+	UserID uuid.UUID
 }
 
 func (q *Queries) CreateLike(ctx context.Context, arg CreateLikeParams) error {
@@ -179,14 +175,13 @@ func (q *Queries) CreateLike(ctx context.Context, arg CreateLikeParams) error {
 }
 
 const createPost = `-- name: CreatePost :one
-INSERT INTO posts(id, user_id, title, content, featured_image_url)
-VALUES($1, $2, $3, $4, $5)
+INSERT INTO posts(user_id, title, content, featured_image_url)
+VALUES($1, $2, $3, $4)
 RETURNING id, user_id, title, content, created_at, views_count, comments_count, featured_image_url
 `
 
 type CreatePostParams struct {
-	ID               string
-	UserID           string
+	UserID           uuid.UUID
 	Title            string
 	Content          string
 	FeaturedImageUrl sql.NullString
@@ -194,7 +189,6 @@ type CreatePostParams struct {
 
 func (q *Queries) CreatePost(ctx context.Context, arg CreatePostParams) (Post, error) {
 	row := q.db.QueryRowContext(ctx, createPost,
-		arg.ID,
 		arg.UserID,
 		arg.Title,
 		arg.Content,
@@ -222,8 +216,8 @@ SET kind_id = EXCLUDED.kind_id
 `
 
 type CreateReactionParams struct {
-	PostID string
-	UserID string
+	PostID uuid.UUID
+	UserID uuid.UUID
 	KindID int32
 }
 
@@ -237,8 +231,8 @@ DELETE FROM bookmarks WHERE user_id = $1 AND post_id = $2
 `
 
 type DeleteBookmarkParams struct {
-	UserID string
-	PostID string
+	UserID uuid.UUID
+	PostID uuid.UUID
 }
 
 func (q *Queries) DeleteBookmark(ctx context.Context, arg DeleteBookmarkParams) error {
@@ -250,7 +244,7 @@ const deleteComment = `-- name: DeleteComment :exec
 DELETE FROM post_comments WHERE id = $1
 `
 
-func (q *Queries) DeleteComment(ctx context.Context, id string) error {
+func (q *Queries) DeleteComment(ctx context.Context, id uuid.UUID) error {
 	_, err := q.db.ExecContext(ctx, deleteComment, id)
 	return err
 }
@@ -259,7 +253,7 @@ const deletePost = `-- name: DeletePost :exec
 DELETE FROM posts WHERE id = $1
 `
 
-func (q *Queries) DeletePost(ctx context.Context, id string) error {
+func (q *Queries) DeletePost(ctx context.Context, id uuid.UUID) error {
 	_, err := q.db.ExecContext(ctx, deletePost, id)
 	return err
 }
@@ -269,8 +263,8 @@ DELETE FROM post_reactions WHERE post_id = $1 AND user_id = $2
 `
 
 type DeleteReactionParams struct {
-	PostID string
-	UserID string
+	PostID uuid.UUID
+	UserID uuid.UUID
 }
 
 func (q *Queries) DeleteReaction(ctx context.Context, arg DeleteReactionParams) error {
@@ -295,7 +289,7 @@ LIMIT $2
 `
 
 type GetAllBookmarksParams struct {
-	UserID    string
+	UserID    uuid.UUID
 	Limit     int32
 	CreatedAt time.Time
 }
@@ -339,15 +333,15 @@ WHERE
     -- filters
     post_id = $1 AND
     -- cursor
-    ($3::VARCHAR = '' OR id <= $3::VARCHAR)
+    (is_zero_uuid($3::UUID) OR id <= $3::UUID)
 ORDER BY id DESC
 LIMIT $2
 `
 
 type GetAllPostCommentsParams struct {
-	PostID string
+	PostID uuid.UUID
 	Limit  int32
-	ID     string
+	ID     uuid.UUID
 }
 
 func (q *Queries) GetAllPostComments(ctx context.Context, arg GetAllPostCommentsParams) ([]PostComment, error) {
@@ -387,7 +381,7 @@ WHERE
     to_tsvector('english', title || ' ' || content) @@ to_tsquery('english', $2::VARCHAR) AND
     -- cursor
     ($3::INTEGER = 0 OR views_count <= $3::INTEGER) AND
-    ($4::VARCHAR = '' OR id <= $4::VARCHAR)
+    (is_zero_uuid($4::UUID) OR id <= $4::UUID)
 ORDER BY
     views_count DESC,
     id DESC
@@ -398,7 +392,7 @@ type GetAllPostsParams struct {
 	Limit       int32
 	SearchQuery string
 	ViewsCount  int32
-	ID          string
+	ID          uuid.UUID
 }
 
 func (q *Queries) GetAllPosts(ctx context.Context, arg GetAllPostsParams) ([]Post, error) {
@@ -445,8 +439,7 @@ WHERE
     -- filter
     user_id = $1 AND
     -- cursor
-    ($3::INTEGER = 0 OR views_count <= $3::INTEGER) AND
-    ($4::VARCHAR = '' OR id <= $4::VARCHAR)
+    (is_zero_uuid($3::UUID) OR id <= $3::UUID)
 ORDER BY
     views_count DESC,
     id DESC
@@ -454,19 +447,13 @@ LIMIT $2
 `
 
 type GetAllUserPostsParams struct {
-	UserID     string
-	Limit      int32
-	ViewsCount int32
-	ID         string
+	UserID uuid.UUID
+	Limit  int32
+	ID     uuid.UUID
 }
 
 func (q *Queries) GetAllUserPosts(ctx context.Context, arg GetAllUserPostsParams) ([]Post, error) {
-	rows, err := q.db.QueryContext(ctx, getAllUserPosts,
-		arg.UserID,
-		arg.Limit,
-		arg.ViewsCount,
-		arg.ID,
-	)
+	rows, err := q.db.QueryContext(ctx, getAllUserPosts, arg.UserID, arg.Limit, arg.ID)
 	if err != nil {
 		return nil, err
 	}
@@ -508,7 +495,7 @@ OFFSET $3
 `
 
 type GetBookmarksParams struct {
-	UserID string
+	UserID uuid.UUID
 	Limit  int32
 	Offset int32
 }
@@ -549,7 +536,7 @@ const getBookmarksCount = `-- name: GetBookmarksCount :one
 SELECT COUNT(*) FROM bookmarks WHERE user_id = $1
 `
 
-func (q *Queries) GetBookmarksCount(ctx context.Context, userID string) (int64, error) {
+func (q *Queries) GetBookmarksCount(ctx context.Context, userID uuid.UUID) (int64, error) {
 	row := q.db.QueryRowContext(ctx, getBookmarksCount, userID)
 	var count int64
 	err := row.Scan(&count)
@@ -560,7 +547,7 @@ const getPost = `-- name: GetPost :one
 SELECT id, user_id, title, content, created_at, views_count, comments_count, featured_image_url FROM posts WHERE id = $1
 `
 
-func (q *Queries) GetPost(ctx context.Context, id string) (Post, error) {
+func (q *Queries) GetPost(ctx context.Context, id uuid.UUID) (Post, error) {
 	row := q.db.QueryRowContext(ctx, getPost, id)
 	var i Post
 	err := row.Scan(
@@ -586,7 +573,7 @@ OFFSET $3
 `
 
 type GetPostCommentsParams struct {
-	PostID string
+	PostID uuid.UUID
 	Limit  int32
 	Offset int32
 }
@@ -624,7 +611,7 @@ const getPostCommentsCount = `-- name: GetPostCommentsCount :one
 SELECT comments_count FROM posts WHERE id = $1
 `
 
-func (q *Queries) GetPostCommentsCount(ctx context.Context, id string) (int32, error) {
+func (q *Queries) GetPostCommentsCount(ctx context.Context, id uuid.UUID) (int32, error) {
 	row := q.db.QueryRowContext(ctx, getPostCommentsCount, id)
 	var comments_count int32
 	err := row.Scan(&comments_count)
@@ -646,7 +633,7 @@ type GetPostReactionsRow struct {
 	Count int64
 }
 
-func (q *Queries) GetPostReactions(ctx context.Context, postID string) ([]GetPostReactionsRow, error) {
+func (q *Queries) GetPostReactions(ctx context.Context, postID uuid.UUID) ([]GetPostReactionsRow, error) {
 	rows, err := q.db.QueryContext(ctx, getPostReactions, postID)
 	if err != nil {
 		return nil, err
@@ -680,7 +667,7 @@ OFFSET $3
 `
 
 type GetPostViewsParams struct {
-	PostID string
+	PostID uuid.UUID
 	Limit  int32
 	Offset int32
 }
@@ -722,7 +709,7 @@ const getPostViewsCount = `-- name: GetPostViewsCount :one
 SELECT views_count FROM posts WHERE id = $1
 `
 
-func (q *Queries) GetPostViewsCount(ctx context.Context, id string) (int32, error) {
+func (q *Queries) GetPostViewsCount(ctx context.Context, id uuid.UUID) (int32, error) {
 	row := q.db.QueryRowContext(ctx, getPostViewsCount, id)
 	var views_count int32
 	err := row.Scan(&views_count)
@@ -750,7 +737,7 @@ OFFSET $3
 `
 
 type GetUserPostsParams struct {
-	UserID string
+	UserID uuid.UUID
 	Limit  int32
 	Offset int32
 }
@@ -791,7 +778,7 @@ const getUserPostsCount = `-- name: GetUserPostsCount :one
 SELECT posts_count FROM users WHERE id = $1
 `
 
-func (q *Queries) GetUserPostsCount(ctx context.Context, id string) (int32, error) {
+func (q *Queries) GetUserPostsCount(ctx context.Context, id uuid.UUID) (int32, error) {
 	row := q.db.QueryRowContext(ctx, getUserPostsCount, id)
 	var posts_count int32
 	err := row.Scan(&posts_count)
@@ -807,7 +794,7 @@ RETURNING id, post_id, user_id, content, created_at
 
 type UpdateCommentParams struct {
 	Content string
-	ID      string
+	ID      uuid.UUID
 }
 
 func (q *Queries) UpdateComment(ctx context.Context, arg UpdateCommentParams) (PostComment, error) {
@@ -837,7 +824,7 @@ type UpdatePostParams struct {
 	Title            string
 	Content          string
 	FeaturedImageUrl sql.NullString
-	ID               string
+	ID               uuid.UUID
 }
 
 func (q *Queries) UpdatePost(ctx context.Context, arg UpdatePostParams) (Post, error) {
@@ -868,8 +855,8 @@ ON CONFLICT(post_id, user_id) DO NOTHING
 `
 
 type ViewPostParams struct {
-	PostID string
-	UserID string
+	PostID uuid.UUID
+	UserID uuid.UUID
 }
 
 func (q *Queries) ViewPost(ctx context.Context, arg ViewPostParams) error {

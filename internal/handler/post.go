@@ -7,14 +7,12 @@ import (
 
 	"github.com/assaidy/blogging_app/internal/repo"
 	"github.com/assaidy/blogging_app/internal/repo/postgres_repo"
-	"github.com/assaidy/blogging_app/internal/types"
-	"github.com/assaidy/blogging_app/internal/utils"
 	"github.com/gofiber/fiber/v2"
-	"github.com/oklog/ulid/v2"
+	"github.com/google/uuid"
 )
 
 func HandleCreatePost(c *fiber.Ctx) error {
-	req := types.PostCreateOrUpdateRequest{}
+	req := PostCreateOrUpdateRequest{}
 	if err := parseAndValidateJsonBody(c, &req); err != nil {
 		return err
 	}
@@ -22,7 +20,6 @@ func HandleCreatePost(c *fiber.Ctx) error {
 	userID := getUserIDFromContext(c)
 
 	post, err := queries.CreatePost(context.Background(), postgres_repo.CreatePostParams{
-		ID:               ulid.Make().String(),
 		UserID:           userID,
 		Title:            req.Title,
 		Content:          req.Content,
@@ -38,26 +35,25 @@ func HandleCreatePost(c *fiber.Ctx) error {
 	}
 	for _, id := range followersIDs {
 		notificationChan <- postgres_repo.Notification{
-			ID:       ulid.Make().String(),
 			KindID:   repo.NotificationKindNewPost,
 			UserID:   id,
-			SenderID: sql.NullString{Valid: true, String: post.UserID},
-			PostID:   sql.NullString{Valid: true, String: post.ID},
+			SenderID: uuid.NullUUID{Valid: true, UUID: post.UserID},
+			PostID:   uuid.NullUUID{Valid: true, UUID: post.ID},
 		}
 	}
 
-	var payload types.PostPayload
+	var payload PostPayload
 	fillPostPayload(&payload, &post)
-	payload.Reactions = []types.PostPayloadReaction{}
+	payload.Reactions = []PostPayloadReaction{}
 
-	return c.Status(fiber.StatusCreated).JSON(types.ApiResponse{
+	return c.Status(fiber.StatusCreated).JSON(ApiResponse{
 		Payload: payload,
 	})
 }
 
 func HandleGetPost(c *fiber.Ctx) error {
-	postID := c.Params("post_id")
-	if !utils.IsValidEncodedULID(postID) {
+	postID, err := uuid.Parse(c.Params("post_id"))
+	if err != nil {
 		return fiber.NewError(fiber.StatusBadRequest, "invalid ID fromat")
 	}
 
@@ -74,23 +70,23 @@ func HandleGetPost(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusInternalServerError, fmt.Sprintf("error getting post reactions: %+v", err))
 	}
 
-	var payload types.PostPayload
+	var payload PostPayload
 	fillPostPayload(&payload, &post)
 	fillPostReactions(&payload, reactions)
 
-	return c.Status(fiber.StatusOK).JSON(types.ApiResponse{
+	return c.Status(fiber.StatusOK).JSON(ApiResponse{
 		Payload: payload,
 	})
 }
 
 func HandleUpdatePost(c *fiber.Ctx) error {
-	req := types.PostCreateOrUpdateRequest{}
+	req := PostCreateOrUpdateRequest{}
 	if err := parseAndValidateJsonBody(c, &req); err != nil {
 		return err
 	}
 
-	postID := c.Params("post_id")
-	if !utils.IsValidEncodedULID(postID) {
+	postID, err := uuid.Parse(c.Params("post_id"))
+	if err != nil {
 		return fiber.NewError(fiber.StatusBadRequest, "invalid ID fromat")
 	}
 
@@ -126,18 +122,18 @@ func HandleUpdatePost(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusInternalServerError, fmt.Sprintf("error getting post reactions: %+v", err))
 	}
 
-	var payload types.PostPayload
+	var payload PostPayload
 	fillPostPayload(&payload, &newPost)
 	fillPostReactions(&payload, reactions)
 
-	return c.Status(fiber.StatusOK).JSON(types.ApiResponse{
+	return c.Status(fiber.StatusOK).JSON(ApiResponse{
 		Payload: payload,
 	})
 }
 
 func HandleDeletePost(c *fiber.Ctx) error {
-	postID := c.Params("post_id")
-	if !utils.IsValidEncodedULID(postID) {
+	postID, err := uuid.Parse(c.Params("post_id"))
+	if err != nil {
 		return fiber.NewError(fiber.StatusBadRequest, "invalid ID fromat")
 	}
 
@@ -166,8 +162,8 @@ func HandleDeletePost(c *fiber.Ctx) error {
 }
 
 func HandleViewPost(c *fiber.Ctx) error {
-	postID := c.Params("post_id")
-	if !utils.IsValidEncodedULID(postID) {
+	postID, err := uuid.Parse(c.Params("post_id"))
+	if err != nil {
 		return fiber.NewError(fiber.StatusBadRequest, "invalid ID fromat")
 	}
 
@@ -198,13 +194,13 @@ func HandleViewPost(c *fiber.Ctx) error {
 	return c.Status(fiber.StatusOK).SendString("post view was added successfully")
 }
 func HandleCreateComment(c *fiber.Ctx) error {
-	req := types.CommentCreateOrUpdateRequest{}
+	req := CommentCreateOrUpdateRequest{}
 	if err := parseAndValidateJsonBody(c, &req); err != nil {
 		return err
 	}
 
-	postID := c.Params("post_id")
-	if !utils.IsValidEncodedULID(postID) {
+	postID, err := uuid.Parse(c.Params("post_id"))
+	if err != nil {
 		return fiber.NewError(fiber.StatusBadRequest, "invalid ID fromat")
 	}
 
@@ -217,7 +213,6 @@ func HandleCreateComment(c *fiber.Ctx) error {
 	userID := getUserIDFromContext(c)
 
 	comment, err := queries.CreateComment(context.Background(), postgres_repo.CreateCommentParams{
-		ID:      ulid.Make().String(),
 		PostID:  postID,
 		UserID:  userID,
 		Content: req.Content,
@@ -226,22 +221,22 @@ func HandleCreateComment(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusInternalServerError, fmt.Sprintf("error creating error: %+v", err))
 	}
 
-	var payload types.CommentPayload
+	var payload CommentPayload
 	fillCommentPayload(&payload, &comment)
 
-	return c.Status(fiber.StatusCreated).JSON(types.ApiResponse{
+	return c.Status(fiber.StatusCreated).JSON(ApiResponse{
 		Payload: payload,
 	})
 }
 
 func HandleUpdateComment(c *fiber.Ctx) error {
-	req := types.CommentCreateOrUpdateRequest{}
+	req := CommentCreateOrUpdateRequest{}
 	if err := parseAndValidateJsonBody(c, &req); err != nil {
 		return err
 	}
 
-	commentID := c.Params("comment_id")
-	if !utils.IsValidEncodedULID(commentID) {
+	commentID, err := uuid.Parse(c.Params("comment_id"))
+	if err != nil {
 		return fiber.NewError(fiber.StatusBadRequest, "invalid ID fromat")
 	}
 
@@ -270,17 +265,17 @@ func HandleUpdateComment(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusInternalServerError, fmt.Sprintf("error updating comment: %+v", err))
 	}
 
-	var payload types.CommentPayload
+	var payload CommentPayload
 	fillCommentPayload(&payload, &newComment)
 
-	return c.Status(fiber.StatusOK).JSON(types.ApiResponse{
+	return c.Status(fiber.StatusOK).JSON(ApiResponse{
 		Payload: payload,
 	})
 }
 
 func HandleDeleteComment(c *fiber.Ctx) error {
-	commentID := c.Params("comment_id")
-	if !utils.IsValidEncodedULID(commentID) {
+	commentID, err := uuid.Parse(c.Params("comment_id"))
+	if err != nil {
 		return fiber.NewError(fiber.StatusBadRequest, "invalid ID fromat")
 	}
 
@@ -309,8 +304,8 @@ func HandleDeleteComment(c *fiber.Ctx) error {
 }
 
 func HandleReact(c *fiber.Ctx) error {
-	postID := c.Params("post_id")
-	if !utils.IsValidEncodedULID(postID) {
+	postID, err := uuid.Parse(c.Params("post_id"))
+	if err != nil {
 		return fiber.NewError(fiber.StatusBadRequest, "invalid ID fromat")
 	}
 	reactionKindName := c.Query("reaction_kind")
@@ -343,8 +338,8 @@ func HandleReact(c *fiber.Ctx) error {
 }
 
 func HandleDeleteReaction(c *fiber.Ctx) error {
-	postID := c.Params("post_id")
-	if !utils.IsValidEncodedULID(postID) {
+	postID, err := uuid.Parse(c.Params("post_id"))
+	if err != nil {
 		return fiber.NewError(fiber.StatusBadRequest, "invalid ID fromat")
 	}
 	userID := getUserIDFromContext(c)
@@ -369,8 +364,8 @@ func HandleDeleteReaction(c *fiber.Ctx) error {
 }
 
 func HandleAddToBookmarks(c *fiber.Ctx) error {
-	postID := c.Params("post_id")
-	if !utils.IsValidEncodedULID(postID) {
+	postID, err := uuid.Parse(c.Params("post_id"))
+	if err != nil {
 		return fiber.NewError(fiber.StatusBadRequest, "invalid ID fromat")
 	}
 
@@ -402,8 +397,8 @@ func HandleAddToBookmarks(c *fiber.Ctx) error {
 }
 
 func HandleDeleteFromBookmarks(c *fiber.Ctx) error {
-	postID := c.Params("post_id")
-	if !utils.IsValidEncodedULID(postID) {
+	postID, err := uuid.Parse(c.Params("post_id"))
+	if err != nil {
 		return fiber.NewError(fiber.StatusBadRequest, "invalid ID fromat")
 	}
 	userID := getUserIDFromContext(c)
@@ -428,8 +423,8 @@ func HandleDeleteFromBookmarks(c *fiber.Ctx) error {
 }
 
 func HandleGetAllUserPosts(c *fiber.Ctx) error {
-	userID := c.Params("user_id")
-	if !utils.IsValidEncodedULID(userID) {
+	userID, err := uuid.Parse(c.Params("user_id"))
+	if err != nil {
 		return fiber.NewError(fiber.StatusBadRequest, "invalid ID fromat")
 	}
 
@@ -444,7 +439,7 @@ func HandleGetAllUserPosts(c *fiber.Ctx) error {
 		limit = 10
 	}
 
-	var requestCursor PostsCursor
+	var requestCursor UserPostsCursor
 	if err := decodeBase64AndUnmarshalJson(&requestCursor, c.Query("cursor")); err != nil {
 		return fiber.NewError(fiber.StatusBadRequest, "invalid cursor format")
 	}
@@ -453,8 +448,7 @@ func HandleGetAllUserPosts(c *fiber.Ctx) error {
 		// filter
 		UserID: userID,
 		// cursor
-		ViewsCount: int32(requestCursor.ViewsCount),
-		ID:         requestCursor.ID,
+		ID: requestCursor.ID,
 		// limit
 		Limit: int32(limit) + 1,
 	})
@@ -465,9 +459,8 @@ func HandleGetAllUserPosts(c *fiber.Ctx) error {
 	var encodedResponseCursor string
 	hasMore := limit < len(posts)
 	if hasMore {
-		responseCursor := PostsCursor{
-			ViewsCount: int(posts[limit].ViewsCount),
-			ID:         posts[limit].ID,
+		responseCursor := UserPostsCursor{
+			ID: posts[limit].ID,
 		}
 		encodedResponseCursor, err = marshalJsonAndEncodeBase64(responseCursor)
 		if err != nil {
@@ -476,9 +469,9 @@ func HandleGetAllUserPosts(c *fiber.Ctx) error {
 		posts = posts[:limit]
 	}
 
-	payload := make([]types.PostPayload, 0, len(posts))
+	payload := make([]PostPayload, 0, len(posts))
 	for _, post := range posts {
-		var postPayload types.PostPayload
+		var postPayload PostPayload
 		fillPostPayload(&postPayload, &post)
 		payload = append(payload, postPayload)
 	}
@@ -529,9 +522,9 @@ func HandleGetAllPosts(c *fiber.Ctx) error {
 		posts = posts[:limit]
 	}
 
-	payload := make([]types.PostPayload, 0, len(posts))
+	payload := make([]PostPayload, 0, len(posts))
 	for _, post := range posts {
-		var postPayload types.PostPayload
+		var postPayload PostPayload
 		fillPostPayload(&postPayload, &post)
 		payload = append(payload, postPayload)
 	}
@@ -545,8 +538,8 @@ func HandleGetAllPosts(c *fiber.Ctx) error {
 }
 
 func HandleGetAllPostComments(c *fiber.Ctx) error {
-	postID := c.Params("post_id")
-	if !utils.IsValidEncodedULID(postID) {
+	postID, err := uuid.Parse(c.Params("post_id"))
+	if err != nil {
 		return fiber.NewError(fiber.StatusBadRequest, "invalid ID fromat")
 	}
 
@@ -591,9 +584,9 @@ func HandleGetAllPostComments(c *fiber.Ctx) error {
 		comments = comments[:limit]
 	}
 
-	payload := make([]types.CommentPayload, 0, len(comments))
+	payload := make([]CommentPayload, 0, len(comments))
 	for _, comment := range comments {
-		var commentPayload types.CommentPayload
+		var commentPayload CommentPayload
 		fillCommentPayload(&commentPayload, &comment)
 		payload = append(payload, commentPayload)
 	}
@@ -642,9 +635,9 @@ func HandleGetAllBookmarks(c *fiber.Ctx) error {
 		bookmarks = bookmarks[:limit]
 	}
 
-	payload := make([]types.PostPayload, 0, len(bookmarks))
+	payload := make([]PostPayload, 0, len(bookmarks))
 	for _, bookmark := range bookmarks {
-		var postPayload types.PostPayload
+		var postPayload PostPayload
 		fillPostPayload(&postPayload, &bookmark)
 		payload = append(payload, postPayload)
 	}

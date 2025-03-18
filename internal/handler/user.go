@@ -7,16 +7,15 @@ import (
 
 	"github.com/assaidy/blogging_app/internal/repo"
 	"github.com/assaidy/blogging_app/internal/repo/postgres_repo"
-	"github.com/assaidy/blogging_app/internal/types"
 	"github.com/assaidy/blogging_app/internal/utils"
 	"github.com/gofiber/fiber/v2"
-	"github.com/oklog/ulid/v2"
+	"github.com/google/uuid"
 )
 
 func HandleGetUserById(c *fiber.Ctx) error {
-	userID := c.Params("user_id")
-	if !utils.IsValidEncodedULID(userID) {
-		return fiber.NewError(fiber.StatusBadRequest, "invalid ID format")
+	userID, err := uuid.Parse(c.Params("user_id"))
+	if err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, "invalid ID fromat")
 	}
 
 	user, err := queries.GetUserByID(context.Background(), userID)
@@ -27,10 +26,10 @@ func HandleGetUserById(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusInternalServerError, fmt.Sprintf("error getting user: %+v", err))
 	}
 
-	var userPayload types.UserPayload
+	var userPayload UserPayload
 	fillUserPayload(&userPayload, &user)
 
-	return c.Status(fiber.StatusOK).JSON(types.ApiResponse{
+	return c.Status(fiber.StatusOK).JSON(ApiResponse{
 		Payload: userPayload,
 	})
 }
@@ -46,16 +45,16 @@ func HandleGetUserByUsername(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusInternalServerError, fmt.Sprintf("error getting user: %+v", err))
 	}
 
-	var userPayload types.UserPayload
+	var userPayload UserPayload
 	fillUserPayload(&userPayload, &user)
 
-	return c.Status(fiber.StatusOK).JSON(types.ApiResponse{
+	return c.Status(fiber.StatusOK).JSON(ApiResponse{
 		Payload: userPayload,
 	})
 }
 
 func HandleUpdateUser(c *fiber.Ctx) error {
-	req := types.UserUpdateRequest{}
+	req := UserUpdateRequest{}
 	if err := parseAndValidateJsonBody(c, &req); err != nil {
 		return err
 	}
@@ -95,10 +94,10 @@ func HandleUpdateUser(c *fiber.Ctx) error {
 		ProfileImageUrl: sql.NullString{Valid: true, String: req.ProfileImageUrl},
 	})
 
-	var userPayload types.UserPayload
+	var userPayload UserPayload
 	fillUserPayload(&userPayload, &newUser)
 
-	return c.Status(fiber.StatusOK).JSON(types.ApiResponse{
+	return c.Status(fiber.StatusOK).JSON(ApiResponse{
 		Payload: userPayload,
 	})
 }
@@ -114,9 +113,9 @@ func HandleDeleteUser(c *fiber.Ctx) error {
 }
 
 func HandleFollow(c *fiber.Ctx) error {
-	followedID := c.Params("followed_id")
-	if !utils.IsValidEncodedULID(followedID) {
-		return fiber.NewError(fiber.StatusBadRequest, "invalid ID format")
+	followedID, err := uuid.Parse(c.Params("followed_id"))
+	if err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, "invalid ID fromat")
 	}
 	userID := getUserIDFromContext(c)
 
@@ -147,18 +146,17 @@ func HandleFollow(c *fiber.Ctx) error {
 	}
 
 	notificationChan <- postgres_repo.Notification{
-		ID:       ulid.Make().String(),
 		KindID:   repo.NotificationKindNewFollower,
 		UserID:   followedID,
-		SenderID: userID,
+		SenderID: uuid.NullUUID{Valid: true, UUID: userID},
 	}
 
 	return c.Status(fiber.StatusOK).SendString("user was followed successfully")
 }
 
 func HandleUnfollow(c *fiber.Ctx) error {
-	followedID := c.Params("followed_id")
-	if !utils.IsValidEncodedULID(followedID) {
+	followedID, err := uuid.Parse(c.Params("followed_id"))
+	if err != nil {
 		return fiber.NewError(fiber.StatusBadRequest, "invalid ID fromat")
 	}
 	userID := getUserIDFromContext(c)
@@ -203,6 +201,8 @@ func HandleGetAllUsers(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusBadRequest, "invalid cursor format")
 	}
 
+	fmt.Println(requestCursor)
+
 	users, err := queries.GetAllUsers(context.Background(), postgres_repo.GetAllUsersParams{
 		// filter
 		Name:     c.Query("name"),
@@ -233,9 +233,9 @@ func HandleGetAllUsers(c *fiber.Ctx) error {
 		users = users[:limit]
 	}
 
-	payload := make([]types.UserPayload, 0, len(users))
+	payload := make([]UserPayload, 0, len(users))
 	for _, user := range users {
-		var userPayload types.UserPayload
+		var userPayload UserPayload
 		fillUserPayload(&userPayload, &user)
 		payload = append(payload, userPayload)
 	}
@@ -284,9 +284,9 @@ func HandleGetAllFollowers(c *fiber.Ctx) error {
 		followers = followers[:limit]
 	}
 
-	payload := make([]types.UserPayload, 0, len(followers))
+	payload := make([]UserPayload, 0, len(followers))
 	for _, follower := range followers {
-		var userPayload types.UserPayload
+		var userPayload UserPayload
 		fillUserPayload(&userPayload, &follower)
 		payload = append(payload, userPayload)
 	}

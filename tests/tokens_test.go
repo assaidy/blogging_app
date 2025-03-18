@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/assaidy/blogging_app/internal/utils"
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -25,7 +26,7 @@ func TestGenerateJWTAccessToken(t *testing.T) {
 	defer os.Unsetenv("ACCESS_TOKEN_EXPIRATION_MINUTES")
 	defer os.Unsetenv("SECRET")
 
-	userID := "test-user-id"
+	userID := uuid.New()
 	tokenString, err := utils.GenerateJWTAccessToken(userID)
 	assert.NoError(t, err)
 	assert.NotEmpty(t, tokenString)
@@ -42,7 +43,7 @@ func TestParseJWTTokenString(t *testing.T) {
 	defer os.Unsetenv("ACCESS_TOKEN_EXPIRATION_MINUTES")
 	defer os.Unsetenv("SECRET")
 
-	userID := "test-user-id"
+	userID := uuid.New()
 	tokenString, err := utils.GenerateJWTAccessToken(userID)
 	assert.NoError(t, err)
 

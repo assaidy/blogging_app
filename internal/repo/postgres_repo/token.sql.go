@@ -8,6 +8,8 @@ package postgres_repo
 import (
 	"context"
 	"time"
+
+	"github.com/google/uuid"
 )
 
 const createRefreshToken = `-- name: CreateRefreshToken :exec
@@ -17,7 +19,7 @@ VALUES($1, $2, $3)
 
 type CreateRefreshTokenParams struct {
 	Token     string
-	UserID    string
+	UserID    uuid.UUID
 	ExpiresAt time.Time
 }
 

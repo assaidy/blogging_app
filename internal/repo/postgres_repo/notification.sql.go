@@ -8,6 +8,8 @@ package postgres_repo
 import (
 	"context"
 	"time"
+
+	"github.com/google/uuid"
 )
 
 const checkNotificationForUser = `-- name: CheckNotificationForUser :one
@@ -15,8 +17,8 @@ SELECT EXISTS(SELECT 1 FROM notifications WHERE id = $1 AND user_id = $2)
 `
 
 type CheckNotificationForUserParams struct {
-	ID     string
-	UserID string
+	ID     uuid.UUID
+	UserID uuid.UUID
 }
 
 func (q *Queries) CheckNotificationForUser(ctx context.Context, arg CheckNotificationForUserParams) (bool, error) {
@@ -27,23 +29,21 @@ func (q *Queries) CheckNotificationForUser(ctx context.Context, arg CheckNotific
 }
 
 const createNotification = `-- name: CreateNotification :one
-INSERT INTO notifications(id, kind_id, user_id, sender_id, post_id, is_read)
-VALUES($1, $2, $3, $4, $5, $6)
+INSERT INTO notifications(kind_id, user_id, sender_id, post_id, is_read)
+VALUES($1, $2, $3, $4, $5)
 RETURNING id, kind_id, user_id, sender_id, post_id, is_read, created_at
 `
 
 type CreateNotificationParams struct {
-	ID       string
 	KindID   int32
-	UserID   string
-	SenderID interface{}
-	PostID   interface{}
+	UserID   uuid.UUID
+	SenderID uuid.NullUUID
+	PostID   uuid.NullUUID
 	IsRead   bool
 }
 
 func (q *Queries) CreateNotification(ctx context.Context, arg CreateNotificationParams) (Notification, error) {
 	row := q.db.QueryRowContext(ctx, createNotification,
-		arg.ID,
 		arg.KindID,
 		arg.UserID,
 		arg.SenderID,
@@ -78,23 +78,23 @@ WHERE
     -- filter
     n.user_id = $1 AND
     -- cursor
-    ($3::VARCHAR = '' OR n.id <= $3::VARCHAR)
+    (is_zero_uuid($3::UUID) OR id <= $3::UUID)
 ORDER BY n.id DESC
 LIMIT $2
 `
 
 type GetAllNotificationsParams struct {
-	UserID string
+	UserID uuid.UUID
 	Limit  int32
-	ID     string
+	ID     uuid.UUID
 }
 
 type GetAllNotificationsRow struct {
-	ID        string
+	ID        uuid.UUID
 	Kind      string
-	UserID    string
-	SenderID  interface{}
-	PostID    interface{}
+	UserID    uuid.UUID
+	SenderID  uuid.NullUUID
+	PostID    uuid.NullUUID
 	IsRead    bool
 	CreatedAt time.Time
 }
@@ -135,7 +135,7 @@ SELECT COUNT(*) FROM notifications
 WHERE user_id = $1
 `
 
-func (q *Queries) GetNotificationsCount(ctx context.Context, userID string) (int64, error) {
+func (q *Queries) GetNotificationsCount(ctx context.Context, userID uuid.UUID) (int64, error) {
 	row := q.db.QueryRowContext(ctx, getNotificationsCount, userID)
 	var count int64
 	err := row.Scan(&count)
@@ -147,7 +147,7 @@ SELECT COUNT(*) FROM notifications
 WHERE user_id = $1 AND is_read = false
 `
 
-func (q *Queries) GetUnreadNotificationsCount(ctx context.Context, userID string) (int64, error) {
+func (q *Queries) GetUnreadNotificationsCount(ctx context.Context, userID uuid.UUID) (int64, error) {
 	row := q.db.QueryRowContext(ctx, getUnreadNotificationsCount, userID)
 	var count int64
 	err := row.Scan(&count)
@@ -158,7 +158,7 @@ const markNotificationAsRead = `-- name: MarkNotificationAsRead :exec
 UPDATE notifications SET is_read = true WHERE id = $1
 `
 
-func (q *Queries) MarkNotificationAsRead(ctx context.Context, id string) error {
+func (q *Queries) MarkNotificationAsRead(ctx context.Context, id uuid.UUID) error {
 	_, err := q.db.ExecContext(ctx, markNotificationAsRead, id)
 	return err
 }

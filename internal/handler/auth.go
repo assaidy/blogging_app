@@ -7,14 +7,12 @@ import (
 
 	"github.com/assaidy/blogging_app/internal/repo"
 	"github.com/assaidy/blogging_app/internal/repo/postgres_repo"
-	"github.com/assaidy/blogging_app/internal/types"
 	"github.com/assaidy/blogging_app/internal/utils"
 	"github.com/gofiber/fiber/v2"
-	"github.com/oklog/ulid/v2"
 )
 
 func HandleRegister(c *fiber.Ctx) error {
-	req := types.UserRegisterRequest{}
+	req := UserRegisterRequest{}
 	if err := parseAndValidateJsonBody(c, &req); err != nil {
 		return err
 	}
@@ -31,7 +29,6 @@ func HandleRegister(c *fiber.Ctx) error {
 	}
 
 	user, err := queries.CreateUser(context.Background(), postgres_repo.CreateUserParams{
-		ID:             ulid.Make().String(),
 		Name:           req.Name,
 		Username:       req.Username,
 		HashedPassword: hashedPassword,
@@ -57,10 +54,10 @@ func HandleRegister(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusInternalServerError, fmt.Sprintf("error storing refresh token: %+v", err))
 	}
 
-	var userPayload types.UserPayload
+	var userPayload UserPayload
 	fillUserPayload(&userPayload, &user)
 
-	return c.Status(fiber.StatusCreated).JSON(types.ApiResponse{
+	return c.Status(fiber.StatusCreated).JSON(ApiResponse{
 		Payload:      userPayload,
 		AccessToken:  accessToken,
 		RefreshToken: refreshToken.Token,
@@ -68,7 +65,7 @@ func HandleRegister(c *fiber.Ctx) error {
 }
 
 func HandleLogin(c *fiber.Ctx) error {
-	req := types.UserLoginRequest{}
+	req := UserLoginRequest{}
 	if err := parseAndValidateJsonBody(c, &req); err != nil {
 		return err
 	}
@@ -102,10 +99,10 @@ func HandleLogin(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusInternalServerError, fmt.Sprintf("error storing refresh token: %+v", err))
 	}
 
-	var userPayload types.UserPayload
+	var userPayload UserPayload
 	fillUserPayload(&userPayload, &user)
 
-	return c.Status(fiber.StatusCreated).JSON(types.ApiResponse{
+	return c.Status(fiber.StatusCreated).JSON(ApiResponse{
 		Payload:      userPayload,
 		AccessToken:  accessToken,
 		RefreshToken: refreshToken.Token,
@@ -135,7 +132,7 @@ func HandleGetAccessToken(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusInternalServerError, fmt.Sprintf("error creating access token: %+v", err))
 	}
 
-	return c.Status(fiber.StatusOK).JSON(types.ApiResponse{
+	return c.Status(fiber.StatusOK).JSON(ApiResponse{
 		AccessToken: accessToken,
 	})
 }

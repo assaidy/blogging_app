@@ -1,6 +1,6 @@
 -- name: CreateUser :one
-INSERT INTO users(id, name, username, hashed_password, profile_image_url)
-VALUES($1, $2, $3, $4, $5)
+INSERT INTO users(name, username, hashed_password, profile_image_url)
+VALUES($1, $2, $3, $4)
 RETURNING *;
 
 -- name: GetUserByUsername :one
@@ -54,7 +54,7 @@ WHERE
      -- cursor
     (sqlc.arg(followers_count)::INTEGER = 0 OR followers_count <= sqlc.arg(followers_count)::INTEGER) AND
     (sqlc.arg(posts_count)::INTEGER = 0 OR posts_count <= sqlc.arg(posts_count)::INTEGER) AND
-    (sqlc.arg(ID)::VARCHAR = '' OR id <= sqlc.arg(ID)::VARCHAR)
+    (is_zero_uuid(sqlc.arg(ID)::UUID) OR id <= sqlc.arg(ID)::UUID)
 ORDER BY
     followers_count DESC,
     posts_count DESC,
@@ -69,6 +69,6 @@ WHERE
     -- filter
     followed_id = $1 AND
     -- cursor
-    (sqlc.arg(ID)::VARCHAR = '' OR users.id <= sqlc.arg(ID)::VARCHAR)
+    (is_zero_uuid(sqlc.arg(ID)::UUID) OR id <= sqlc.arg(ID)::UUID)
 ORDER BY users.id DESC
 LIMIT $2;

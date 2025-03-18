@@ -32,9 +32,6 @@ func Auth(c *fiber.Ctx) error {
 	if claims.ExpiresAt.Sub(time.Now()) < 0 {
 		return fiber.ErrUnauthorized
 	}
-	if !utils.IsValidEncodedULID(claims.UserID) {
-		return fiber.ErrUnauthorized // malformed ulid -> invalid token
-	}
 	// NOTE: if the users deleted his account, but his access token hasn't expired yet,
 	// and we got a request that uses mwAuth(get's userid from context),
 	// we need to ensure that user exists.
