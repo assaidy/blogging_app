@@ -1,7 +1,0 @@
-### test#14
-GET http://localhost:8080/api/v1/users?limit=10&cursor=
-HTTP/1.1 200 OK
-
-# @_RES
-{"payload":[{"id":"0195aae4-9fa9-d627-51d6-4cd404102265","name":"John Doe","username":"johndoe123","joinedAt":"2025-03-18T20:14:24.680323Z","postsCount":0,"followingCount":0,"followersCount":0}],"cursor":"","hasNext":false,"totalCount":1}
-# @_END
