@@ -88,5 +88,7 @@ To get started with this project, follow these steps:
 - **Fiber**: Web framework for building the API.
 - **JWT (JSON Web Tokens)**: For user authentication.
 - **PostgreSQL**: Relational database for data storage.
-- **Cursor Pagination**: Implemented cursor-based pagination to minimize bandwidth usage and reduce server load,
- ensuring efficient data retrieval for large datasets.
+- **Goose**: Database migration tool for managing schema changes.
+- **SQLC**: SQL compiler and type-safe query generator for Go.
+- **Docker Compose**: Containerization and orchestration for local development and deployment,
+- **Cursor Pagination**: Implemented cursor-based pagination to minimize bandwidth usage and reduce server load, ensuring efficient data retrieval for large datasets.
