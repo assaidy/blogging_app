@@ -92,3 +92,5 @@ To get started with this project, follow these steps:
 - **SQLC**: SQL compiler and type-safe query generator for Go.
 - **Docker Compose**: Containerization and orchestration for local development and deployment,
 - **Cursor Pagination**: Implemented cursor-based pagination to minimize bandwidth usage and reduce server load, ensuring efficient data retrieval for large datasets.
+- **Go Channels**: Used as an asynchronous queue for background tasks and event processing.
+- **Prefork**: Enabled for load balancing and improved performance under high traffic.
