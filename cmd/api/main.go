@@ -16,7 +16,10 @@ import (
 )
 
 func mountRoutes(app *fiber.App) {
-	api := app.Group("api", middleware.Logger)
+	api := app.Group("api",
+		middleware.Logger,
+		middleware.Swagger,
+	)
 
 	v1 := api.Group("v1")
 	{
