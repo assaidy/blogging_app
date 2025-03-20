@@ -10,7 +10,6 @@ import (
 	"github.com/assaidy/blogging_app/internal/db/postgres_db"
 	"github.com/assaidy/blogging_app/internal/repo/postgres_repo"
 	"github.com/assaidy/blogging_app/internal/utils"
-	"github.com/gofiber/contrib/swagger"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/logger"
 )
@@ -20,13 +19,6 @@ var repo = postgres_repo.New(postgres_db.DB)
 const AuthUserID = "middleware.auth.userID"
 
 var Logger = logger.New()
-
-var Swagger = swagger.New(swagger.Config{
-	BasePath: "/",
-	FilePath: "swagger.yaml",
-	Path:     "swagger",
-	Title:    "Swagger API Docs",
-})
 
 func Auth(c *fiber.Ctx) error {
 	tokenString := strings.TrimPrefix(c.Get(fiber.HeaderAuthorization), "Bearer ")
